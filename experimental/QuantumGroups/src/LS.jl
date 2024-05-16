@@ -722,45 +722,18 @@ end
 function tensor_coefficient(
   a::LSFanElem, b::LSFanElem; rdec::Vector{<:Integer}=word(max(a))
 )
-  coeff = 0
-  num = 0
   iter = TensorIterator(a, b; rdec=rdec)
-
-  rk = rank(root_system(iter.LS))
-  pbw = [
-  GAP.Globals.MonomialElements(
-  GAP.Globals.CanonicalBasis(iter.LS.gap_U), GAP.Obj(Int.(i .== 1:rk))
-  )[1] for i in 1:rk
-  ]
-  l = length(iter.exp_b)
-  A, q = cyclotomic_field(2*l)
-
-  d = 1
-  for p in vec(b)
-    n = Int(l * p.a)
-    v = GAP.Globals.Basis(iter.LS.gap_V)[1]
-    for (i, n) in Iterators.reverse(Iterators.zip(word(p.w), bonds(iter.LS.dual_heighst_weight, p.w)))
-      v = pow(iter.LS.gap_U, pbw[Int(i)], n)^v
-    end
-
-    rep = GAP.Globals.ExtRepOfObj(GAP.Globals.ExtRepOfObj(v))
-    coeffs = GAP.Globals.CoefficientsOfLaurentPolynomial(rep[2])
-    d *= sum(k -> coeffs[1][k]*q^(k-1+coeffs[2]), 1:length(coeffs[1]))^n
-  end
-
-  for mat in iter
-    c = compute_coefficient(iter, mat)
-    num += 1
-    coeff += c
-  end
-
-  return num, A(coeff) / d
+  return _tensor_coefficient(iter)
 end
 
 function tensor_coefficient(seq::Vector{Tuple{Int, Int}}, b::LSFanElem)
+  iter = TensorIterator(seq, b)
+  return _tensor_coefficient(iter)
+end
+
+function _tensor_coefficient(iter::TensorIterator)
   coeff = 0
   num = 0
-  iter = TensorIterator(seq, b)
 
   rk = rank(root_system(iter.LS))
   pbw = [
@@ -772,7 +745,7 @@ function tensor_coefficient(seq::Vector{Tuple{Int, Int}}, b::LSFanElem)
   A, q = cyclotomic_field(2*l)
 
   d = 1
-  for p in vec(b)
+  for p in vec(iter.b)
     n = Int(l * p.a)
     v = GAP.Globals.Basis(iter.LS.gap_V)[1]
     for (i, n) in Iterators.reverse(Iterators.zip(word(p.w), bonds(iter.LS.dual_heighst_weight, p.w)))
@@ -788,7 +761,6 @@ function tensor_coefficient(seq::Vector{Tuple{Int, Int}}, b::LSFanElem)
     c = compute_coefficient(iter, mat)
     num += 1
     coeff += c
-    break
   end
 
   return num, A(coeff) / d
