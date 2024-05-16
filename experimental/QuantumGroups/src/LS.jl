@@ -351,7 +351,7 @@ function height(a::LSFanElem, i::Int)
 end
 
 function eps(a::LSFanElem, i::Int)
-  return -minimum(height(a, i))
+  return -Int(minimum(height(a, i)))
 end
 
 function fi!(a::LSFanElem, i::Int)
@@ -938,6 +938,17 @@ function sequence(a::LSFanElem, b::LSFanElem; rdec=word(max(a)))
   end
 
   return true
+end
+
+function adapted_string(a::LSFanElem, rdec::Vector{Int})
+  s = zero(rdec)
+
+  b = deepcopy(a)
+  for i in 1:length(rdec)
+    s[i] = eps(b, rdec[i])
+    fi!(b, rdec[i], s[i])
+  end
+  return s
 end
 
 # ============================================================

@@ -17,6 +17,7 @@ export LSFan, LSFanElem
 export NZPolytope, NZPolytopePoint
 export PathVector
 
+export adapted_string
 export bonds
 export ls_fan
 export points_of_weight
@@ -34,6 +35,7 @@ export LSFan, LSFanElem
 export NZPolytope, NZPolytopePoint
 export PathVector
 
+export adapted_string
 export bonds
 export phi
 export ls_fan
