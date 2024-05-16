@@ -946,8 +946,7 @@ function adapted_string(a::LSFanElem, rdec::Vector{Int})
   b = deepcopy(a)
   for i in 1:length(rdec)
     s[i] = eps(b, rdec[i])
-    fi!(b, rdec[i], s[i])
-    println(s, b)
+    ei!(b, rdec[i], s[i])
   end
   return s
 end
