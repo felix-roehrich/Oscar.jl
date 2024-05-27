@@ -1,0 +1,45 @@
+module QuantumGroups
+
+using ..Oscar
+
+import Base: deepcopy_internal
+import Base: eps
+
+import Oscar: IntegerUnion
+import Oscar: expressify, height, points, root_system, weight, weyl_group
+
+include("LS.jl")
+include("NZPolytope.jl")
+include("QuantumNumbers.jl")
+include("PathVector.jl")
+
+export LSFan, LSFanElem
+export NZPolytope, NZPolytopePoint
+export PathVector
+
+export bonds
+export ls_fan
+export points_of_weight
+export sequence
+export tensor_coefficient
+export tensor_matrix
+export highest_weight
+export q_binomial
+
+end
+
+using .QuantumGroups
+
+export LSFan, LSFanElem
+export NZPolytope, NZPolytopePoint
+export PathVector
+
+export bonds
+export phi
+export ls_fan
+export points_of_weight
+export sequence
+export tensor_coefficient
+export tensor_matrix
+export highest_weight
+export q_binomial
