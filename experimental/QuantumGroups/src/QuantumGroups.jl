@@ -19,6 +19,7 @@ export PathVector
 
 export adapted_string
 export bonds
+export global_string
 export ls_fan
 export points_of_weight
 export sequence
@@ -37,6 +38,7 @@ export PathVector
 
 export adapted_string
 export bonds
+export global_string
 export phi
 export ls_fan
 export points_of_weight

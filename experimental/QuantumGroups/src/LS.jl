@@ -731,6 +731,11 @@ function tensor_coefficient(seq::Vector{Tuple{Int, Int}}, b::LSFanElem)
   return _tensor_coefficient(iter)
 end
 
+function tensor_coefficient(w::Vector{Int}, s::Vector{Int}, b::LSFanElem)
+  iter = TensorIterator([(w[i], s[i]) for i in 1:length(s)], b)
+  return _tensor_coefficient(iter)
+end
+
 function _tensor_coefficient(iter::TensorIterator)
   coeff = 0
   num = 0
@@ -948,6 +953,46 @@ function adapted_string(a::LSFanElem, rdec::Vector{Int})
     s[i] = eps(b, rdec[i])
     ei!(b, rdec[i], s[i])
   end
+  return s
+end
+
+function global_string(a::LSFanElem, rdec::Vector{Int})
+  s = zero(rdec)
+  b = deepcopy(a)
+
+  n = QQFieldElem(0)
+  for i in 1:length(rdec)
+    for j in 1:length(b.vec)+1
+      if j <= length(b.vec) && b.vec[j].weight[rdec[i]] < 0
+        n -= b.vec[j].a*b.vec[j].weight[rdec[i]]
+      else
+        nf = floor(n)
+        s[i] += Int(nf)
+        zero!(n)
+
+        k = j - 1
+        while k >= 1 && b.vec[k].weight[rdec[i]] < 0
+          a = b.vec[k].a*b.vec[k].weight[rdec[i]] # a is negative
+          if nf + a > 0
+            nf += a
+            lmul!(b.vec[k].w, rdec[i])
+            reflect!(b.vec[k].weight, rdec[i])
+          elseif iszero(nf + a)
+            lmul!(b.vec[k].w, rdec[i])
+            reflect!(b.vec[k].weight, rdec[i])
+            break
+          else
+            insert!(b.vec, k+1, lsPair(0, lmul(b.vec[k].w, rdec[i]), reflect(b.vec[k].weight, rdec[i])))
+            b.vec[k+1].a = 1//b.vec[k+1].weight[rdec[i]]*nf
+            b.vec[k].a -= b.vec[k+1].a
+            break
+          end
+          k -= 1
+        end
+      end
+    end
+  end
+
   return s
 end
 
