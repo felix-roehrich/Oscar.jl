@@ -399,6 +399,15 @@ function fi!(a::LSFanElem, i::Int, n::Int)
   return a
 end
 
+function fi!(a::LSFanElem, i::Vector{<:Integer}, n::Vector{<:Integer})
+  @req length(i) === length(n) "i and n must have the same length"
+
+  for l in length(i):-1:1
+    fi!(a, i[l], n[l])
+  end
+  return a
+end
+
 function ei!(a::LSFanElem, i::Int)
   h = height(a, i)
   mi = minimum(h)
@@ -954,6 +963,16 @@ function adapted_string(a::LSFanElem, rdec::Vector{Int})
     ei!(b, rdec[i], s[i])
   end
   return s
+end
+
+function global_eps(a::LSFanElem, i::Integer)
+  n = QQFieldElem(0)
+  for j in 1:length(a.vec)+1
+    if j <= length(a.vec) && a.vec[j].weight[i] < 0
+      n -= a.vec[j].a*a.vec[j].weight[i]
+    end
+  end
+  return floor(Int, n)
 end
 
 function global_string(a::LSFanElem, rdec::Vector{Int})

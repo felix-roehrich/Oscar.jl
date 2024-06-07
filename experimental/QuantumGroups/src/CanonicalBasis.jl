@@ -1,0 +1,47 @@
+struct CanonicalBasisElem
+  c::Vector{Int}
+  f::Vector{Vector{Tuple{Int,Int}}}
+  
+  function CanonicalBasisElem()
+    return new([], [])
+  end
+end
+
+function (a::LSFanElem)(b::CanonicalBasisElem)
+  z = 0
+  for i in 1:length(b.f)
+    _, c = tensor_coefficient(b.f[i], a)
+    z += b.c[i]*c
+  end
+  return z
+end
+
+function canonical_basis(R::RootSystem, deg::Vector{Int})
+  gR = GAP.Globals.RootSystem(GAP.Obj("A"), rank(R))
+  gU = GAP.Globals.QuantizedUEA(gR)
+  gB = GAP.Globals.CanonicalBasis(gU)
+  
+  basis = CanonicalBasisElem[]
+  
+  elems = GAP.Globals.MonomialElements(gB, GAP.Obj(deg))
+  for el in elems
+    b = CanonicalBasisElem()
+    rep = GAP.Globals.ExtRepOfObj(el)
+    for (f, c) in Iterators.partition(rep, 2)
+      v = Tuple{Int,Int}[]
+      p = i -> i == 1 ? 1 : i == 3 ? 2 : 3
+      for (i, n) in Iterators.partition(f, 2)
+        push!(v, (p(i), n))
+      end
+      push!(b.c, c(1)) # c is a laurent polynomial
+      push!(b.f, v)
+    end
+    push!(basis, b)
+  end
+  
+  # sort basis lexicographically
+  
+  
+  return basis
+end
+

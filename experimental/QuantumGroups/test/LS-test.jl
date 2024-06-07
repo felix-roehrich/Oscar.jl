@@ -123,6 +123,8 @@ end
 
     # [0, 1, 2, 2, 2, 1] with fi!
     # [0, 2, 2, 2, 2, 1] with ei!
+
+    # Oscar.QuantumGroups.fi!(LS(), [1, 2, 3, 1, 2, 1], [1, 3, 2, 1, 0, 0]) == 1//4*e(s1 * s2 * s3 * s1) + 1//4*e(s2 * s3 * s1) + 1//2*e(s3)
   end
 
   @testset "ei!" begin

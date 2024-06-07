@@ -13,12 +13,16 @@ include("NZPolytope.jl")
 include("QuantumNumbers.jl")
 include("PathVector.jl")
 
+include("CanonicalBasis.jl")
+
 export LSFan, LSFanElem
 export NZPolytope, NZPolytopePoint
 export PathVector
 
 export adapted_string
 export bonds
+export canonical_basis
+export global_eps
 export global_string
 export ls_fan
 export points_of_weight
@@ -38,6 +42,8 @@ export PathVector
 
 export adapted_string
 export bonds
+export canonical_basis
+export global_eps
 export global_string
 export phi
 export ls_fan
