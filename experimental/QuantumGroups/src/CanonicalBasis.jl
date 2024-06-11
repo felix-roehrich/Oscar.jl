@@ -45,3 +45,12 @@ function canonical_basis(R::RootSystem, deg::Vector{Int})
   return basis
 end
 
+function filter_sort_canonical_basis(can::Vector{CanonicalBasisElem}, pts::Vector{LSFanElem})  
+  rdec = [1,2,1,3,2,1]
+  for i in 1:length(pts)
+    s = adapted_string(pts[i], rdec)
+    j = findfirst(b -> b.f[1] == [(rdec[j], s[j]) for j in 1:length(rdec) if s[j] != 0], can)
+    can[i], can[j] = can[j], can[i]
+  end
+  return can[1:length(pts)]
+end
