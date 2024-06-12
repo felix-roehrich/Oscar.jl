@@ -653,43 +653,45 @@ function TensorIterator(seq::Vector{Tuple{Int, Int}}, b::LSFanElem)
   )
 end
 
+# deduplicate with iterate(iter, mat) ?
 function Base.iterate(iter::TensorIterator)
   l = length(iter.exp_b)
   mat = zeros(Int, length(iter.rdec), l)
-
-  cm = cartan_matrix(root_system(iter.LS))
-
-  row = copy(iter.exp_a)
-  j = 1
-  for p in vec(iter.b)
-    n = Int(l * p.a)
-    while n > 0
-      s = sequence(iter.LS.dual_heighst_weight, word(p.w))
-      v = GAP.Globals.Basis(iter.LS.gap_V)[1] # highest weight vector
-      for i in 1:nrows(mat)
-        _min = min(s[iter.rdec[i]], row[i])
-        k = 0
-        while k < _min
-          k += 1
-          temp = GAP.Globals.Falpha(iter.LS.gap_V, v, iter.rdec[i])
-          if iszero(temp)
-            k -= 1
-            break
-          end
-          v = temp
+  
+  i = 1
+  while i <= length(iter.rdec)
+    mat[i, :] = compute_bound(iter, mat, i)
+    
+    s = 0
+    for j in 1:l
+      s += mat[i, j]
+      if s >= iter.exp_a[i]
+        mat[i, j] -= s - iter.exp_a[i]
+        for k in j+1:l
+          mat[i, k] = 0
         end
-
-        mat[i, j] = k
-        s[iter.rdec[i]] -= k
-        row[i] -= k
+        break
       end
-      if any(s .> 0)
+    end
+    
+    if s < iter.exp_a[i]
+      i -= 1
+      np = Vector{Int}()
+      while i > 0
+        np = next_partition(mat[i, :], compute_bound(iter, mat, i))
+        if !isnothing(np)
+          break
+        end
+        i -= 1
+      end
+      if i == 0
         return nothing
       end
-
-      j += 1
-      n -= 1
+      
+      mat[i, :] = np
     end
+    
+    i += 1
   end
 
   return mat, mat
