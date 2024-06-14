@@ -33,7 +33,7 @@ function canonical_basis(R::RootSystem, deg::Vector{Int})
       for (i, n) in Iterators.partition(f, 2)
         push!(v, (p(i), n))
       end
-      push!(b.c, c(1)) # c is a laurent polynomial
+      push!(b.c, GAP.Globals.Value(c, 1)) # c is a laurent polynomial
       push!(b.f, v)
     end
     push!(basis, b)
