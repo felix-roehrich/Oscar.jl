@@ -16,7 +16,7 @@ function (a::LSFanElem)(b::CanonicalBasisElem)
   return z
 end
 
-function canonical_basis(R::RootSystem, deg::Vector{Int})
+function canonical_basis(R::RootSystem, deg::Vector{Int}, pts::Vector{LSFanElem})
   gR = GAP.Globals.RootSystem(GAP.Obj("A"), rank(R))
   gU = GAP.Globals.QuantizedUEA(gR)
   gB = GAP.Globals.CanonicalBasis(gU)
@@ -24,12 +24,22 @@ function canonical_basis(R::RootSystem, deg::Vector{Int})
   basis = CanonicalBasisElem[]
   
   elems = GAP.Globals.MonomialElements(gB, GAP.Obj(deg))
+  strs = GAP.Globals.Strings(gB, GAP.Obj(deg))
+  
+  rdec = [1,2,1,3,2,1]
+  for i in 1:length(pts)
+    s = adapted_string(pts[i], rdec)
+    j = findfirst(b -> strs == [(rdec[j], s[j]) for j in 1:length(rdec) if s[j] != 0], strs)
+    elems[i], elems[j] = elems[j], elems[i]
+  end
+  
   for el in elems
     b = CanonicalBasisElem()
     rep = GAP.Globals.ExtRepOfObj(el)
     for (f, c) in Iterators.partition(rep, 2)
       v = Tuple{Int,Int}[]
       p = i -> i == 1 ? 1 : i == 3 ? 2 : 3
+      
       for (i, n) in Iterators.partition(f, 2)
         push!(v, (p(i), n))
       end
@@ -38,9 +48,6 @@ function canonical_basis(R::RootSystem, deg::Vector{Int})
     end
     push!(basis, b)
   end
-  
-  # sort basis lexicographically
-  
   
   return basis
 end
