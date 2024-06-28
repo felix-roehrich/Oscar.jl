@@ -29,7 +29,7 @@ function canonical_basis(R::RootSystem, deg::Vector{Int}, pts::Vector{LSFanElem}
   rdec = [1,2,1,3,2,1] # LongestWeylWord
   for i in 1:length(pts)
     s = adapted_string(pts[i], rdec)
-    j = findfirst(b -> strs == [(rdec[j], s[j]) for j in 1:length(rdec) if s[j] != 0], strs)
+    j = findfirst(b -> Iterators.partition(b, 2) == [(rdec[j], s[j]) for j in 1:length(rdec) if s[j] != 0], strs)
     elems[i], elems[j] = elems[j], elems[i]
   end
   
