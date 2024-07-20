@@ -4,7 +4,7 @@ module LieAlgebras
 
 using ..Oscar
 
-import Oscar: GAPWrap, IntegerUnion, MapHeader
+import Oscar: GAPWrap, IntegerUnion, MapHeader, weight
 
 import Random
 
@@ -83,8 +83,9 @@ import ..Oscar:
   ⊕,
   ⊗
 
-import Base: getindex, deepcopy_internal, hash, issubset, iszero, parent, zero
+import Base: getindex, deepcopy_internal, hash, issubset, iszero, max, parent, zero
 
+export AbstractCrystal, AbstractCrystalElem
 export AbstractLieAlgebra, AbstractLieAlgebraElem
 export DirectSumLieAlgebra, DirectSumLieAlgebraElem
 export DualRootSpaceElem
@@ -95,6 +96,7 @@ export LieAlgebraModule, LieAlgebraModuleElem
 export LieAlgebraModuleHom
 export LieSubalgebra
 export LinearLieAlgebra, LinearLieAlgebraElem
+export LSPathModel, LSPathModelElem
 export RootSpaceElem
 export RootSystem
 export WeightLatticeElem
@@ -110,6 +112,7 @@ export _is_tensor_power
 export _is_tensor_product
 export abelian_lie_algebra
 export abstract_module
+export adapted_string
 export base_lie_algebra
 export bilinear_form
 export bracket
@@ -130,10 +133,14 @@ export coxeter_matrix
 export derived_algebra
 export dim_of_simple_module
 export dominant_character
+export dominant_path
+export ealpha, ealpha!
 export exterior_power
+export falpha, falpha!
 export fundamental_weight
 export fundamental_weights
 export general_linear_lie_algebra
+export halpha
 export induced_map_on_symmetric_power
 export induced_map_on_tensor_power
 export is_cartan_matrix
@@ -160,6 +167,8 @@ export lie_algebra
 export lmul, lmul!
 export longest_element
 export lower_central_series
+export ls_path_model
+export ls_sequence
 export matrix_repr_basis
 export multicombinations
 export negative_coroot
@@ -213,6 +222,7 @@ include("CoxeterGroup.jl")
 include("RootSystem.jl")
 include("DynkinDiagram.jl")
 include("WeylGroup.jl")
+include("PathModel.jl") # depends on WeylGroup.jl
 
 include("Util.jl")
 include("LieAlgebra.jl")
@@ -232,6 +242,7 @@ end # module LieAlgebras
 
 using .LieAlgebras
 
+export AbstractCrystal, AbstractCrystalElem
 export AbstractLieAlgebra, AbstractLieAlgebraElem
 export DirectSumLieAlgebra, DirectSumLieAlgebraElem
 export DualRootSpaceElem
@@ -242,6 +253,7 @@ export LieAlgebraModule, LieAlgebraModuleElem
 export LieAlgebraModuleHom
 export LieSubalgebra
 export LinearLieAlgebra, LinearLieAlgebraElem
+export LSPathModel, LSPathModelElem
 export RootSpaceElem
 export RootSystem
 export WeightLatticeElem
@@ -250,6 +262,7 @@ export WeylOrbitIterator
 
 export abelian_lie_algebra
 export abstract_module
+export adapted_string
 export base_lie_algebra
 export bilinear_form
 export bracket
@@ -268,10 +281,14 @@ export coxeter_matrix
 export derived_algebra
 export dim_of_simple_module
 export dominant_character
+export dominant_path
+export ealpha, ealpha!
 export exterior_power
+export falpha, falpha!
 export fundamental_weight
 export fundamental_weights
 export general_linear_lie_algebra
+export halpha
 export induced_map_on_symmetric_power
 export induced_map_on_tensor_power
 export is_cartan_matrix
@@ -298,6 +315,8 @@ export lie_algebra
 export lmul, lmul!
 export longest_element
 export lower_central_series
+export ls_path_model
+export ls_sequence
 export matrix_repr_basis
 export negative_coroot
 export negative_coroots
