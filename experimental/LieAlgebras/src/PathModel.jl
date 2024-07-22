@@ -665,11 +665,8 @@ function test_idea(t::Symbol, r::Int, wt::Vector{Int})
   for k in keys(char)
     pts = P(k)
     for p in pts
-      if !is_balanced(p)
-        continue
-      end
       for q in pts
-        if all(i -> eps(p, i) < eps(q, i), 1:rank(R))
+        if max(q) >= max(p) && all(i -> eps(p, i) < eps(q, i), 1:rank(R))
           return p, q
         end
       end
