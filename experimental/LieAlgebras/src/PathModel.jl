@@ -428,7 +428,7 @@ end
 
 function phi(p::LSPathModelElem, i::Int)
   h = halpha(p, i)
-  return Int(halpha(p, i)[end]) - Int(minimum(h))
+  return Int(h[end]) - Int(minimum(h))
 end
 
 function weight(p::LSPathModelElem)
