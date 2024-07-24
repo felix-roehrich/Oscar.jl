@@ -128,7 +128,7 @@ end
 
 Return the result of applying the root operator $\tilde f_i$ to `b`.
 """
-function falpha(b::AbstractCrystalElem, i::Vector{Int})
+function falpha(b::AbstractCrystalElem, i::Int)
   return falpha!(deepcopy(b), i)
 end
 
@@ -178,7 +178,7 @@ function adapted_string(p::AbstractCrystalElem, rdec::Vector{Int})
   return s
 end
 
-##### LS Path Model #####
+# LS Path Model 
 
 struct LSPathModel
   wt::WeightLatticeElem
@@ -188,6 +188,17 @@ struct LSPathModel
     @req is_dominant(wt) "weight must be dominant"
     return new(wt, Dict(one(weyl_group(root_system(wt))) => wt))
   end
+end
+
+# Young Tableu Path Model
+
+struct YTPathModel <: AbstractCrystal
+  wt::WeightLatticeElem
+end
+
+struct YTPathModelElem <: AbstractCrystalElem
+  parent::YTPathModel
+  t::YoungTableau
 end
 
 function Base.show(io::IO, mime::MIME"text/plain", P::LSPathModel)
@@ -234,6 +245,15 @@ end
 
 function (P::LSPathModel)(wv::Vector{WeylGroupElem}, tv::Vector{<:RationalUnion})
   return LSPathModelElem(P, [LSPathSegment(t, w) for (t, w) in Iterators.zip(tv, wv)])
+end
+
+function (P::LSPathModel)(p::YTPathModelElem)
+  @req P.wt == parent(p).wt "dominant weights must match"
+  
+  pp = dominant_path(P)
+  i = Int.(word(longest_element(weyl_group(P.wt))))
+  falpha!(pp, i, adapted_string(p, i))
+  return pp
 end
 
 function root_system(P::LSPathModel)
@@ -447,7 +467,7 @@ function (P::LSPathModel)(v::Vector{<:IntegerUnion})
 end
 
 function (P::LSPathModel)(w::WeightLatticeElem)
-  nf = inv(change_base_ring(QQ, cartan_matrix(root_system(P)))) * coefficients(P.wt - w)
+  nf = inv(QQ.(cartan_matrix(root_system(P)))) * coefficients(P.wt - w)
   if !all(is_integral, nf)
     return LSPathModelElem[]
   end
@@ -500,4 +520,94 @@ function (P::LSPathModel)(w::WeightLatticeElem)
   @label done
 
   return points
+end
+
+# Young Tableau path model implemenation
+
+function (P::YTPathModel)(p::LSPathModelElem)
+  @req P.wt == parent(p).wt "dominant weights must match"
+  
+  pp = dominant_path(P)
+  i = Int.(word(max(p)))
+  falpha!(pp, i, adapted_string(p, i))
+  return pp
+end
+
+function yt_path_model(wt::WeightLatticeElem)
+  return YTPathModel(wt)
+end
+
+function yt_path_model(R::RootSystem, wt::Vector{Int})
+  return YTPathModel(WeightLatticeElem(R, wt))
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", p::YTPathModelElem)
+  show(io, mime, p.t)
+end
+
+function dominant_path(P::YTPathModel)
+  rk= rank(root_system(P.wt))
+  shape = zeros(Int, rk)
+  shape[rk] = Int(P.wt[rk])
+  for i in rk-1:-1:1
+    shape[i] = shape[i+1] + Int(P.wt[i])
+  end
+  
+  return YTPathModelElem(P, young_tableau([fill(i, shape[i]) for i in 1:length(shape)]))
+end
+
+function ealpha!(p::YTPathModelElem, i::Int)
+  t = p.t.t
+  
+  i = (1, length(t[r]))
+  m = 0
+  h = 0
+  for r in 1:length(t)
+    for c in length(t[r]):-1:1
+      if t[r][c] == i
+        h += 1
+      elseif t[r][c] == i+1
+        h -= 1
+        if h <= m
+          m = h
+          i = (r, c)
+        end
+      end
+    end
+  end
+  
+  
+end
+
+function falpha!(p::YTPathModelElem, i::Int)
+  t = p.t.t
+  
+  # find last time the global minimum is assumed
+  k, l = 1, length(t[1])+1
+  m = 0
+  h = 0
+  for r in 1:length(t)
+    for c in length(t[r]):-1:1
+      if t[r][c] == i
+        h += 1
+      elseif t[r][c] == i+1
+        h -= 1
+      end
+      
+      if h <= m
+        m = h
+        k, l = r, c
+      end
+    end
+  end
+  
+  if m < h
+    if l == 1
+      k += 1
+      l = length(t[k])+1
+    end
+    t[k][l-1] += 1
+  end
+  
+  return p
 end
