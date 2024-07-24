@@ -497,6 +497,10 @@ function Base.hash(r::RootSpaceElem, h::UInt)
   return xor(b, h)
 end
 
+function Base.vec(r::RootSpaceElem)
+  return vec(r.vec)
+end
+
 function coefficients(r::RootSpaceElem)
   return r.vec
 end
@@ -808,6 +812,10 @@ Return whether `w` is zero.
 """
 function Base.iszero(w::WeightLatticeElem)
   return iszero(w.vec)
+end
+
+function Base.vec(w::WeightLatticeElem)
+  return _vec(w.vec)
 end
 
 function coefficients(w::WeightLatticeElem)
