@@ -615,3 +615,64 @@ function falpha!(p::YTPathModelElem, i::Int)
   
   return p
 end
+
+function global_eps(p::LSPathModelElem, i::Integer)
+  n = QQFieldElem(0)
+  for s in p.s
+    b, _, _ = explain_lmul(s.w, i)
+    if !b
+      n -= s.t*_extremal_weight(parent(p), s.w)[i]
+    else
+      n = floor(n)
+    end
+  end
+  return floor(Int, n)
+end
+
+function total_eps(p::LSPathModelElem, i::Integer)
+  n = QQFieldElem(0)
+  for s in p.s
+    b, _, _ = explain_lmul(s.w, i)
+    if !b
+      n -= s.t*_extremal_weight(parent(p), s.w)[i]
+    end
+  end
+  return n
+end
+
+function is_balanced(p::LSPathModelElem)
+  for w in reduced_expressions(longest_element(weyl_group(root_system(parent(p)))))
+    t = deepcopy(p)
+    for i in w
+      ii = Int(i)
+      n = eps(t, ii)
+      if global_eps(t, ii) != n
+        return false
+      end
+      ealpha!(t, ii, n)
+    end
+  end
+  return true
+end
+
+function test_idea(t::Symbol, r::Int, wt::Vector{Int})
+  R = root_system(t, r)
+  P = ls_path_model(R, wt)
+  L = lie_algebra(QQ, t, r)
+
+  char = dominant_character(L, wt)
+  w0 = longest_element(weyl_group(R))
+  for k in keys(char)
+    pts = P(k)
+    for p in pts
+      if !is_balanced(p)
+        continue
+      end
+      for q in pts
+        if all(i -> eps(p, i) < eps(q, i), 1:rank(R))
+          return p, q
+        end
+      end
+    end
+  end
+end
