@@ -72,8 +72,26 @@ end
 
 function Base.iterate(iter::PathVectorSummandIterator)
   m = zeros(Int, length(iter.n), iter.l)
-  
-  i = 1
+  return initialize(iter, m, 1)
+end
+
+function Base.iterate(iter::PathVectorSummandIterator, m::Matrix{Int})
+  for i in length(iter.i)-2:-1:1
+    nr = next(m[i, :], bound(iter, m, i))
+    if isnothing(nr)
+      i -= 1
+      continue
+    end
+    
+    m[i, :] = nr
+    return initialize(m)
+  end
+
+  return nothing
+end
+
+function initialize(iter::PathVectorSummandIterator, m::Matrix{Int}, row::Int)
+  i = row
   while i <= length(iter.i)
     m[i, :] = bound(iter, m, i)
     
@@ -109,11 +127,6 @@ function Base.iterate(iter::PathVectorSummandIterator)
   return m, m
 end
 
-function Base.iterate(iter::PathVectorSummandIterator, m::Matrix{Int})
-  m2 = copy(m)
-  
-end
-
 function bound(iter::PathVectorSummandIterator, m::Matrix{Int}, row::Int)
   b = zeros(Int, iter.l)
   for j in 1:ncols(m)
@@ -136,15 +149,18 @@ function bound(iter::PathVectorSummandIterator, m::Matrix{Int}, row::Int)
   return b
 end
 
-function next(r::Vector{Int}, b::Vector{Int})
+function next(p::Vector{Int}, b::Vector{Int})
   np = copy(p)
   len = length(np)
 
   r = np[len] + 1
   np[len] = 0
   for i in (len - 1):-1:1
-    if np[i] != 0
-      # overflow over the bound
+    if np[i] == 0
+      continue
+    end
+    
+    # overflow over the bound
       of = np[i + 1] + r - b[i + 1]
       if of <= 0
         np[i] -= 1
@@ -166,7 +182,6 @@ function next(r::Vector{Int}, b::Vector{Int})
           return np
         end
       end
-    end
   end
 
   return nothing
