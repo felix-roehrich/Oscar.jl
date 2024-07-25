@@ -79,12 +79,11 @@ function Base.iterate(iter::PathVectorSummandIterator, m::Matrix{Int})
   for i in length(iter.i)-2:-1:1
     nr = next(m[i, :], bound(iter, m, i))
     if isnothing(nr)
-      i -= 1
       continue
     end
     
     m[i, :] = nr
-    return initialize(m)
+    return initialize(iter, m, i+1)
   end
 
   return nothing
