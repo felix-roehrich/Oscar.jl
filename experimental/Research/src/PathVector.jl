@@ -40,7 +40,7 @@ struct PathVectorSummandIterator
   field::AbsSimpleNumField
   
   # caching
-  bound::Dict{Vector{Int}, Int}
+  bound::Dict{Tuple{Int, Vector{Int}}, Int}
   coeff::Dict{Vector{Int}, AbsSimpleNumFieldElem}
 end
 
@@ -129,23 +129,28 @@ end
 function bound(iter::PathVectorSummandIterator, m::Matrix{Int}, row::Int)
   b = zeros(Int, iter.l)
   for j in 1:ncols(m)
-    fa = copy(iter.na[j])
-    v = GAPWrap.Basis(iter.p.ctx.Mv)[1]
-    for i in 1:row-1
-      fa[iter.i[i]] -= m[i, j]
-      for _ in 1:m[i, j]
-        v = iter.p.ctx.gens[iter.i[i]]^v
-      end
-    end
-    
-    while fa[iter.i[row]] > 0
-      v = iter.p.ctx.gens[iter.i[row]]^v
-      if GAPWrap.IsZero(v)
-        break
+    b[j] = get!(iter.bound, (j, m[1:row-1, j])) do
+      f = iter.na[j][iter.i[row]]
+      v = GAPWrap.Basis(iter.p.ctx.Mv)[1]
+      for i in 1:row-1
+        if iter.i[i] == iter.i[row]
+          f -= m[i, j]
+        end
+        for _ in 1:m[i, j]
+          v = iter.p.ctx.gens[iter.i[i]]^v
+        end
       end
       
-      fa[iter.i[row]] -= 1
-      b[j] += 1
+      bj = 0
+      while f > 0
+        v = iter.p.ctx.gens[iter.i[row]]^v
+        if GAPWrap.IsZero(v)
+          break
+        end
+        f -= 1
+        bj += 1
+      end
+      return bj
     end
   end
   
