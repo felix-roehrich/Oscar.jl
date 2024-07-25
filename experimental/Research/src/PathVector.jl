@@ -45,16 +45,16 @@ struct PathVectorSummandIterator
 end
 
 function PathVectorSummandIterator(p::PathVector, i::Vector{Int}, n::Vector{Int})
-  l = lcm(2, map(d -> Int(denominator(d)), p.path.d)...)
+  l = lcm(2, map(s -> Int(denominator(s.t)), p.path.s)...)
   n = [l*n[i] for i in length(n):-1:1]
   
   na = sizehint!(Vector{Int}[], l)
-  for i in 1:length(p.path.d)
-    num = Int(l * p.path.d[i])
+  for i in 1:length(p.path.s)
+    num = Int(l * p.path.s[i].t)
     
     nai = zeros(Int, rank(root_system(parent(p.path).wt)))
     wt = deepcopy(parent(p.path).wt)
-    for s in Iterators.reverse(word(p.path.s[i]))
+    for s in Iterators.reverse(word(p.path.s[i].w))
       si = Int(s)
       nai[si] += Int(wt[si])
       reflect!(wt, si)
@@ -66,7 +66,7 @@ function PathVectorSummandIterator(p::PathVector, i::Vector{Int}, n::Vector{Int}
     end
   end
   
-  F, _ = cyclotomic_field(2*iter.l)
+  F, _ = cyclotomic_field(2*l)
   return PathVectorSummandIterator(l, reverse(i), n, p, na, F, Dict(), Dict())
 end
 
@@ -139,8 +139,12 @@ function bound(iter::PathVectorSummandIterator, m::Matrix{Int}, row::Int)
       end
     end
     
-    while !GAPWrap.IsZero(v) && fa[iter.i[row]] > 0
+    while fa[iter.i[row]] > 0
       v = iter.p.ctx.gens[iter.i[row]]^v
+      if GAPWrap.IsZero(v)
+        break
+      end
+      
       fa[iter.i[row]] -= 1
       b[j] += 1
     end
