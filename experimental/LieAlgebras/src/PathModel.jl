@@ -186,7 +186,7 @@ struct LSPathModel
   
   function LSPathModel(wt::WeightLatticeElem)
     @req is_dominant(wt) "weight must be dominant"
-    return new(wt, Dict(one(weyl_group(root_system(wt))) => wt))
+    return new(wt, Dict(UInt8[] => wt))
   end
 end
 
