@@ -182,7 +182,7 @@ end
 
 struct LSPathModel
   wt::WeightLatticeElem
-  ext::Dict{WeylGroupElem, WeightLatticeElem} # map from Weyl group elements to extremal weights
+  ext::Dict{Vector{UInt8}, WeightLatticeElem} # map from Weyl group elements to extremal weights
   
   function LSPathModel(wt::WeightLatticeElem)
     @req is_dominant(wt) "weight must be dominant"
@@ -238,9 +238,13 @@ function ls_path_model(R::RootSystem, wt::Vector{<:IntegerUnion})
 end
 
 function _extremal_weight(P::LSPathModel, w::WeylGroupElem)
-  return get!(P.ext, w) do
-    return w*P.wt
+  wt = get(P.ext, word(w), nothing)
+  if isnothing(wt)
+    # we need to make a copy, because w may be modified
+    return get!(P.ext, deepcopy(word(w)), w*P.wt)
   end
+  
+  return wt
 end
 
 function (P::LSPathModel)(wv::Vector{WeylGroupElem}, tv::Vector{<:RationalUnion})
