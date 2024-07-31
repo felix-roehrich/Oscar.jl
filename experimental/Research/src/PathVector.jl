@@ -28,6 +28,19 @@ struct PathVector
   path::LSPathModelElem
 end
 
+function (p::PathVector)(i::Vector{Int}, n::Vector{Int})
+  iter = PathVectorSummandIterator(p, i, n)
+
+  c = 0
+  s = zero(iter.field)
+  for m in iter
+    c += 1
+    s += coefficient(iter, m)
+  end
+
+  return c, s
+end
+
 struct PathVectorSummandIterator
   l::Int
   i::Vector{Int}
@@ -40,6 +53,7 @@ struct PathVectorSummandIterator
   field::AbsSimpleNumField
   
   # caching
+  act::Dict{Vector{Int}, GAP.GapObj}
   bound::Dict{Tuple{Int, Vector{Int}}, Int}
   coeff::Dict{Vector{Int}, AbsSimpleNumFieldElem}
 end
@@ -67,7 +81,36 @@ function PathVectorSummandIterator(p::PathVector, i::Vector{Int}, n::Vector{Int}
   end
   
   F, _ = cyclotomic_field(2*l)
-  return PathVectorSummandIterator(l, reverse(i), n, p, na, F, Dict(), Dict())
+  return PathVectorSummandIterator(l, reverse(i), n, p, na, F, Dict([0] => GAPWrap.Basis(p.ctx.Mv)[1]), Dict(), Dict())
+end
+
+function _action(iter::PathVectorSummandIterator, n::Vector{Int})
+  v = get(iter.act, n, nothing)
+  if !isnothing(v)
+    return v
+  end
+  
+  l = length(n)
+  n2 = copy(n)
+  while isnothing(v)
+    if n2[l] > 0
+      n2[l] -= 1
+    else
+      l -= 1
+    end
+    v = get(iter.act, view(n2, 1:l), nothing)
+  end
+  
+  while l <= length(n)
+    while n2[l] < n[l]
+      n2[l] += 1
+      v = iter.p.ctx.gens[iter.i[l]]^v / GAP.Globals.GaussNumber(n2[l], GAP.Globals._q)
+      iter.act[n2[1:l]] = v
+    end
+    l += 1
+  end
+  
+  return v
 end
 
 function Base.iterate(iter::PathVectorSummandIterator)
@@ -128,29 +171,21 @@ end
 
 function bound(iter::PathVectorSummandIterator, m::Matrix{Int}, row::Int)
   b = zeros(Int, iter.l)
+  c = zeros(Int, row)
   for j in 1:ncols(m)
+    copy!(c, @view m[1:row, j])
     b[j] = get!(iter.bound, (j, m[1:row-1, j])) do
-      f = iter.na[j][iter.i[row]]
-      v = GAPWrap.Basis(iter.p.ctx.Mv)[1]
-      for i in 1:row-1
-        if iter.i[i] == iter.i[row]
-          f -= m[i, j]
-        end
-        for _ in 1:m[i, j]
-          v = iter.p.ctx.gens[iter.i[i]]^v
-        end
-      end
-      
-      bj = 0
+      f = iter.na[j][iter.i[row]] - sum(m[i, j] for i in 1:row-1 if iter.i[i] == iter.i[row]; init=0)
+      c[row] = 1
       while f > 0
-        v = iter.p.ctx.gens[iter.i[row]]^v
+        v = _action(iter, c)
         if GAPWrap.IsZero(v)
           break
         end
         f -= 1
-        bj += 1
+        c[row] += 1
       end
-      return bj
+      return c[row]-1
     end
   end
   
@@ -196,47 +231,86 @@ function next(p::Vector{Int}, b::Vector{Int})
 end
 
 function coefficient(iter::PathVectorSummandIterator, m::Matrix{Int})
-  cm = cartan_matrix(root_system(iter.p.wt))
+  P = parent(iter.p.path)
+  cm = cartan_matrix(root_system(P))
   
   A = iter.field
   q = gen(A)
   coeff = one(A)
+  wt = [deepcopy(P.wt) for _ in 1:ncols(m)]
   for i in 1:nrows(m)
     s = iter.n[i]
-    for j in 1:ncols(m)
+    for j in ncols(m):-1:2
       s -= m[i, j]
-      q *= q^-(s*(m[i, j]+w[j].vec[iter.rdec[i]]))
+      addmul!(wt[j].vec, cm[:, iter.i[i]:iter.i[i]], -m[i, j])
+      coeff *= q^-(s*(m[i, j]+Int(wt[j].vec[iter.i[i]])))
     end
   end
   
-  for j in 1:ncols(mat)
-    if haskey(iter.coeff, mat[:, j])
-      q *= iter.coeff[mat[:, j]]
-      if q == 0
+  for j in 1:ncols(m)
+    if haskey(iter.coeff, m[:, j])
+      coeff *= iter.coeff[m[:, j]]
+      if iszero(coeff)
         break
       end
       continue
     end
 
-    v = GAPWrap.Basis(iter.p.ctx.Mv)[1]
-    for i in 1:nrows(mat)
-      for _ in 1:mat[i, j]
-        v = iter.p.ctx.gens[iter.i[i]]^v
-      end
-      v /= GAP.Globals.GaussianFactorial(mat[i, j], GAP.Globals._q)
-    end
+    v = _action(iter, m[:, j])
     if GAPWrap.IsZero(v)
-      q = 0
-      iter.coeff[mat[:, i]] = zero(A)
-      break
+      error("should not happen")
     end
     
-    rep = GAP.Globals.ExtRepOfObj(GAP.Globals.ExtRepOfObj(wv))
+    rep = GAP.Globals.ExtRepOfObj(GAP.Globals.ExtRepOfObj(v))
     coeffs = GAP.Globals.CoefficientsOfLaurentPolynomial(rep[2])
-    coeff = sum(l -> coeffs[1][l] * v^(l - 1 + coeffs[2]), 1:length(coeffs[1]))
-    iter.cc_cache[mat[:, i]] = coeff
-    q *= coeff
+    coeff *= get!(iter.coeff, m[:, j], sum(l -> coeffs[1][l] * q^(l - 1 + coeffs[2]), 1:length(coeffs[1])))
   end
 
   return q
+end
+
+function canonical_basis(R::RootSystem, deg::Vector{Int}, pts::Vector{LSPathModelElem})
+  gR = GAP.Globals.RootSystem(GAP.Obj("A"), rank(R))
+  gU = GAP.Globals.QuantizedUEA(gR)
+  gB = GAP.Globals.CanonicalBasis(gU)
+  
+  basis = CanonicalBasisElem[]
+  
+  elems = GAP.Globals.MonomialElements(gB, GAP.Obj(deg))
+  strs = GAP.Globals.Strings(gB, GAP.Obj(deg))
+  
+  rdec = [1,2,1,3,2,1] # LongestWeylWord
+  for i in 1:length(pts)
+    s = adapted_string(pts[i], rdec)
+    ss = [[rdec[j], s[j]] for j in 1:length(rdec) if s[j] != 0]
+    
+    j = 1
+    while j < length(strs)
+      if collect(Iterators.partition(strs[j], 2)) == ss
+        break
+      end
+      j += 1
+    end
+    strs[i], strs[j] = strs[j], strs[i]
+    elems[i], elems[j] = elems[j], elems[i]
+  end
+  
+  #elems = elems[1:length(pts)]
+  for el in elems
+    b = CanonicalBasisElem()
+    rep = GAP.Globals.ExtRepOfObj(el)
+    for (f, c) in Iterators.partition(rep, 2)
+      v = Tuple{Int,Int}[]
+      p = i -> i == 1 ? 1 : i == 3 ? 2 : 3
+      
+      for (i, n) in Iterators.partition(f, 2)
+        push!(v, (p(i), n))
+      end
+      push!(b.c, GAP.Globals.Value(c, 1)) # c is a laurent polynomial
+      push!(b.f, v)
+    end
+    push!(basis, b)
+  end
+  
+  return basis
 end

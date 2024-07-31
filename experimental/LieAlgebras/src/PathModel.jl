@@ -6,11 +6,11 @@ abstract type AbstractCrystalElem <: AbstractAlgebra.SetElem end
 
 # AbstractCrystalElem required methods
 
-function Base.eps(b::AbstractCrystalElem)
+function Base.eps(b::AbstractCrystalElem, i::Int)
   error("not implemented")
 end
 
-function phi(b::AbstractCrystalElem)
+function phi(b::AbstractCrystalElem, i::Int)
   error("not implemented")
 end
 
@@ -653,6 +653,50 @@ function is_balanced(p::LSPathModelElem)
     end
   end
   return true
+end
+
+function is_w0_compatible(p::LSPathModelElem)
+  rk = rank(root_system(parent(p)))
+  ok = falses(rk)
+  for i in length(p.s):-1:1
+    for s in 1:rk
+      if ok[s] || first(explain_lmul(p.s[i].w, s))
+        continue
+      end
+      
+      for j in 1:i-1
+        if first(explain_lmul(p.s[j].w, s))
+          return false
+        end
+      end
+      ok[s] = true
+    end
+  end
+  
+  return true
+end
+
+function initial_string(p::LSPathModelElem, w::Vector{Int})
+  str = zeros(Int, length(w))
+  n = zero(QQ)
+  
+  t = deepcopy(p)
+  for i in 1:length(w)
+    for s in t.s
+      b, j, _ = explain_lmul(s.w, w[i])
+      if !b
+        deleteat!(word(s.w), j)
+        n += s.t*_extremal_weight(parent(p), s.w)[w[i]]
+      else
+        break
+      end
+    end
+    
+    str[i] = Int(n)
+    zero!(n)
+  end
+
+  return str
 end
 
 function test_idea(t::Symbol, r::Int, wt::Vector{Int})
