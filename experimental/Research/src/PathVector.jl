@@ -26,10 +26,38 @@ end
 struct PathVector
   ctx::PathVectorContext
   path::LSPathModelElem
+  
+  cache::Dict{Tuple{Vector{Int}, Vector{Int}}, AbsSimpleNumFieldElem}
 end
 
 function (p::PathVector)(i::Vector{Int}, n::Vector{Int})
+  s = get(p.cache, (i, n), nothing)
+  if !isnothing(s)
+    return s
+  end
+
   iter = PathVectorSummandIterator(p, i, n)
+  q = gen(iter.field)
+  
+  # GAP uses PBW basis, we need to normalize
+  r = one(iter.field)
+  f = zeros(Int, length(iter.i))
+  for s in p.path.s
+    w = deepcopy(s.w)
+    for k in 1:length(i)
+      wt = Oscar.LieAlgebras._extremal_weight(parent(p), w)
+      if wt[i[k]] < 0
+        f[k] = -Int(wt[i[k]])
+        lmul!(w, i[k])
+      end
+    end
+    
+    println(f)
+    # v = _action(iter, f)
+    # rep = GAP.Globals.ExtRepOfObj(GAP.Globals.ExtRepOfObj(v))
+    # coeffs = GAP.Globals.CoefficientsOfLaurentPolynomial(rep[2])
+    # r *= sum(k -> coeffs[1][k]*q^(k-1+coeffs[2]), 1:length(coeffs[1]))^Int(iter.l * s.t)
+  end
 
   c = 0
   s = zero(iter.field)
@@ -37,8 +65,8 @@ function (p::PathVector)(i::Vector{Int}, n::Vector{Int})
     c += 1
     s += coefficient(iter, m)
   end
-
-  return c, s
+  
+  return c, get!(p.cache, (i, n), s / r)
 end
 
 struct PathVectorSummandIterator

@@ -1,10 +1,21 @@
 struct CanonicalBasisElem
   c::Vector{Int}
-  f::Vector{Vector{Tuple{Int,Int}}}
+  i::Vector{Vector{Int}}
+  n::Vector{Vector{Int}}
   
   function CanonicalBasisElem()
     return new([], [])
   end
+end
+
+function (p::PathVector)(b::CanonicalBasisElem)
+  z = 0
+  for i in 1:length(b.i)
+    _, s = p(b.i[i], b.n[i])
+    z += b.c[i]*s
+  end
+  
+  return z
 end
 
 function canonical_basis(R::RootSystem, deg::Vector{Int}, pts::Vector{LSPathModelElem})
