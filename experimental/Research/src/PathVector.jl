@@ -28,6 +28,10 @@ struct PathVector
   path::LSPathModelElem
   
   cache::Dict{Tuple{Vector{Int}, Vector{Int}}, AbsSimpleNumFieldElem}
+  
+  function PathVector(ctx::Oscar.Research.PathVectorContext, p::LSPathModelElem)
+    return new(ctx, p, Dict())
+  end
 end
 
 function (p::PathVector)(i::Vector{Int}, n::Vector{Int})

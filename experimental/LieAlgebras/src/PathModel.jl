@@ -290,12 +290,12 @@ end
 
 function Base.:(<)(p::LSPathModelElem, q::LSPathModelElem)
   for i in 1:min(length(p.s), length(q.s))
-    if p.s[i] < q.s[i]
+    if p.s[i].w < q.s[i].w
       return true
-    elseif p.s[i] == q.s[i]
-      if p.d[i] < q.d[i]
+    elseif p.s[i].w == q.s[i].w
+      if p.s[i].t < q.s[i].t
         return true
-      elseif p.d[i] > q.d[i]
+      elseif p.s[i].t > q.s[i].t
         return false
       end
     else
@@ -712,9 +712,14 @@ function test_idea(t::Symbol, r::Int, wt::Vector{Int})
       if !is_balanced(p)
         continue
       end
-      for q in pts
-        if max(q) >= max(p) && !any(i -> eps(p, i) < eps(q, i) || 1 <= eps(p, i) <= eps(q, i), 1:rank(R))
-          return p, q
+      for w in reduced_expressions(w0)
+        q = p
+        for i in w
+          ii = Int(i)
+          if total_eps(q, ii) - global_eps(q, ii) > 1
+            return q, i
+          end
+          q = ealpha!(q, ii, eps(q, ii))
         end
       end
     end
