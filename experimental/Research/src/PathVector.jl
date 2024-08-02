@@ -49,18 +49,19 @@ function (p::PathVector)(i::Vector{Int}, n::Vector{Int})
   for s in p.path.s
     w = deepcopy(s.w)
     for k in 1:length(i)
-      wt = Oscar.LieAlgebras._extremal_weight(parent(p), w)
+      wt = Oscar.LieAlgebras._extremal_weight(parent(p.path), w)
       if wt[i[k]] < 0
-        f[k] = -Int(wt[i[k]])
+        f[end+1-k] = -Int(wt[i[k]])
         lmul!(w, i[k])
+      else
+        f[end+1-k] = 0
       end
     end
     
-    println(f)
-    # v = _action(iter, f)
-    # rep = GAP.Globals.ExtRepOfObj(GAP.Globals.ExtRepOfObj(v))
-    # coeffs = GAP.Globals.CoefficientsOfLaurentPolynomial(rep[2])
-    # r *= sum(k -> coeffs[1][k]*q^(k-1+coeffs[2]), 1:length(coeffs[1]))^Int(iter.l * s.t)
+    v  = _action(iter, f)
+    rep = GAP.Globals.ExtRepOfObj(GAP.Globals.ExtRepOfObj(v))
+    coeffs = GAP.Globals.CoefficientsOfLaurentPolynomial(rep[2])
+    r *= sum(k -> coeffs[1][k]*q^(k-1+coeffs[2]), 1:length(coeffs[1]))^Int(iter.l * s.t)
   end
 
   c = 0
@@ -280,23 +281,16 @@ function coefficient(iter::PathVectorSummandIterator, m::Matrix{Int})
   end
   
   for j in 1:ncols(m)
-    if haskey(iter.coeff, m[:, j])
-      coeff *= iter.coeff[m[:, j]]
-      if iszero(coeff)
-        break
-      end
-      continue
+    coeff *= get!(iter.coeff, m[:, j]) do
+      v = _action(iter, m[:, j])
+      rep = GAP.Globals.ExtRepOfObj(GAP.Globals.ExtRepOfObj(v))
+      coeffs = GAP.Globals.CoefficientsOfLaurentPolynomial(rep[2])
+      return sum(l -> coeffs[1][l] * q^(l - 1 + coeffs[2]), 1:length(coeffs[1]))
     end
-
-    v = _action(iter, m[:, j])
-    if GAPWrap.IsZero(v)
-      error("should not happen")
+    if iszero(coeff)
+      break
     end
-    
-    rep = GAP.Globals.ExtRepOfObj(GAP.Globals.ExtRepOfObj(v))
-    coeffs = GAP.Globals.CoefficientsOfLaurentPolynomial(rep[2])
-    coeff *= get!(iter.coeff, m[:, j], sum(l -> coeffs[1][l] * q^(l - 1 + coeffs[2]), 1:length(coeffs[1])))
   end
 
-  return q
+  return coeff
 end
