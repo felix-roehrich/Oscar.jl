@@ -19,6 +19,7 @@ function (p::PathVector)(b::CanonicalBasisElem)
 end
 
 function canonical_basis(R::RootSystem, deg::Vector{Int}, pts::Vector{LSPathModelElem})
+  GAP.Packages.load("QuaGroup")
   gR = GAP.Globals.RootSystem(GAP.Obj("A"), rank(R))
   gU = GAP.Globals.QuantizedUEA(gR)
   gB = GAP.Globals.CanonicalBasis(gU)
@@ -49,14 +50,17 @@ function canonical_basis(R::RootSystem, deg::Vector{Int}, pts::Vector{LSPathMode
     b = CanonicalBasisElem()
     rep = GAP.Globals.ExtRepOfObj(el)
     for (f, c) in Iterators.partition(rep, 2)
-      v = Tuple{Int,Int}[]
+      vi = Int[]
+      vn = Int[]
       p = i -> i == 1 ? 1 : i == 3 ? 2 : 3
       
       for (i, n) in Iterators.partition(f, 2)
-        push!(v, (p(i), n))
+        push!(vi, p(i))
+        push!(vn, n)
       end
       push!(b.c, GAP.Globals.Value(c, 1)) # c is a laurent polynomial
-      push!(b.f, v)
+      push!(b.i, vi)
+      push!(b.n, vn)
     end
     push!(basis, b)
   end
