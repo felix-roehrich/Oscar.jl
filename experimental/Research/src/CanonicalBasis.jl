@@ -11,8 +11,7 @@ end
 function (p::PathVector)(b::CanonicalBasisElem)
   z = 0
   for i in 1:length(b.i)
-    _, s = p(b.i[i], b.n[i])
-    z += b.c[i]*s
+    z += b.c[i]*p(b.i[i], b.n[i])
   end
   
   return z

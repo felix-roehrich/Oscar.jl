@@ -58,7 +58,7 @@ function (p::PathVector)(i::Vector{Int}, n::Vector{Int})
       end
     end
     if !isone(w)
-      return 0, get!(p.cache, (i, n), zero(iter.field))
+      return get!(p.cache, (i, n), zero(iter.field))
     end
     
     v  = _action(iter, f)
@@ -67,14 +67,12 @@ function (p::PathVector)(i::Vector{Int}, n::Vector{Int})
     r *= sum(k -> coeffs[1][k]*q^(k-1+coeffs[2]), 1:length(coeffs[1]))^Int(iter.l * s.t)
   end
 
-  c = 0
   s = zero(iter.field)
   for m in iter
-    c += 1
     s += coefficient(iter, m)
   end
   
-  return c, get!(p.cache, (i, n), s / r)
+  return get!(p.cache, (i, n), s / r)
 end
 
 struct PathVectorSummandIterator
