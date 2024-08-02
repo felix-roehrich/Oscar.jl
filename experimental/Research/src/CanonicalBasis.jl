@@ -4,7 +4,7 @@ struct CanonicalBasisElem
   n::Vector{Vector{Int}}
   
   function CanonicalBasisElem()
-    return new([], [])
+    return new([], [], [])
   end
 end
 
