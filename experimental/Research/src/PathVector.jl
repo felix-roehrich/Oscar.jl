@@ -58,7 +58,9 @@ function (p::PathVector)(i::Vector{Int}, n::Vector{Int})
       end
     end
     
+    println(f)
     v  = _action(iter, f)
+    println(v)
     rep = GAP.Globals.ExtRepOfObj(GAP.Globals.ExtRepOfObj(v))
     coeffs = GAP.Globals.CoefficientsOfLaurentPolynomial(rep[2])
     r *= sum(k -> coeffs[1][k]*q^(k-1+coeffs[2]), 1:length(coeffs[1]))^Int(iter.l * s.t)

@@ -6,6 +6,7 @@ export canonical_basis
 
 include("PathVector.jl")
 include("CanonicalBasis.jl")
+
 end
 
 using .Research
