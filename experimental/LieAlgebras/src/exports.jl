@@ -2,6 +2,8 @@
 # should be included twice in LieAlgebras.jl, once to export from Oscar.LieAlgebras
 # into Oscar, and once to export from Oscar.
 
+export KashiwaraCrystal
+
 export AbstractLieAlgebra, AbstractLieAlgebraElem
 export DirectSumLieAlgebra, DirectSumLieAlgebraElem
 export LieAlgebra, LieAlgebraElem
@@ -16,7 +18,11 @@ export abelian_lie_algebra
 export abstract_module
 export adjoint_matrix
 export any_non_ad_nilpotent_element
+<<<<<<< HEAD
 export apply_braid_move!
+=======
+export adapted_string
+>>>>>>> bf6624c4f (Move types into Types.jl)
 export base_lie_algebra
 export bracket
 export braid_moves
