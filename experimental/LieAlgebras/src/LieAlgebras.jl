@@ -91,7 +91,7 @@ import ..Oscar:
 
 Oscar.@import_all_serialization_functions
 
-import Base: getindex, deepcopy_internal, hash, issubset, iszero, parent, zero
+import Base: getindex, deepcopy_internal, hash, issubset, iszero, max, parent, zero
 
 include("exports.jl")
 
@@ -123,6 +123,7 @@ include("CoxeterGroup.jl")
 include("RootSystem.jl")
 include("DynkinDiagram.jl")
 include("WeylGroup.jl")
+include("PathModel.jl") # depends on WeylGroup.jl
 
 include("LieAlgebra.jl")
 include("AbstractLieAlgebra.jl")

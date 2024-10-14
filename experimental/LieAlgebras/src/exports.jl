@@ -2,6 +2,7 @@
 # should be included twice in LieAlgebras.jl, once to export from Oscar.LieAlgebras
 # into Oscar, and once to export from Oscar.
 
+export AbstractCrystal, AbstractCrystalElem
 export AbstractLieAlgebra, AbstractLieAlgebraElem
 export DirectSumLieAlgebra, DirectSumLieAlgebraElem
 export DualRootSpaceElem
@@ -12,14 +13,17 @@ export LieAlgebraModule, LieAlgebraModuleElem
 export LieAlgebraModuleHom
 export LieSubalgebra
 export LinearLieAlgebra, LinearLieAlgebraElem
+export LSPathModel, LSPathModelElem
 export RootSpaceElem
 export RootSystem
+export TensorProductCrystal, TensorProductCrystalElem
 export WeightLatticeElem
 export WeylGroup, WeylGroupElem
 export WeylOrbitIterator
 
 export abelian_lie_algebra
 export abstract_module
+export adapted_string
 export adjoint_matrix
 export any_non_ad_nilpotent_element
 export base_lie_algebra
@@ -32,7 +36,9 @@ export cartan_symmetrizer
 export cartan_type
 export cartan_type_with_ordering
 export chevalley_basis
+export coefficient_vector
 export coerce_to_lie_algebra_elem
+export combinations
 export conjugate_dominant_weight
 export conjugate_dominant_weight_with_elem
 export coroot
@@ -41,12 +47,16 @@ export coxeter_matrix
 export derived_algebra
 export dim_of_simple_module
 export dominant_character
+export dominant_path
 export dominant_weights
+export ealpha, ealpha!
 export engel_subalgebra
 export exterior_power
+export falpha, falpha!
 export fundamental_weight
 export fundamental_weights
 export general_linear_lie_algebra
+export halpha
 export induced_map_on_symmetric_power
 export induced_map_on_tensor_power
 export is_ad_nilpotent
@@ -75,7 +85,10 @@ export lie_algebra
 export lmul, lmul!
 export longest_element
 export lower_central_series
+export ls_path_model
+export ls_sequence
 export matrix_repr_basis
+export multicombinations
 export negative_coroot
 export negative_coroots
 export negative_root
@@ -83,6 +96,8 @@ export negative_roots
 export number_of_positive_roots
 export number_of_roots
 export number_of_simple_roots
+export permutations
+export permutations_with_sign
 export positive_coroot
 export positive_coroots
 export positive_root
