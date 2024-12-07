@@ -2,6 +2,7 @@
 # should be included twice in LieAlgebras.jl, once to export from Oscar.LieAlgebras
 # into Oscar, and once to export from Oscar.
 
+export AbstractCrystal, AbstractCrystalElem
 export AbstractLieAlgebra, AbstractLieAlgebraElem
 export DirectSumLieAlgebra, DirectSumLieAlgebraElem
 export DualRootSpaceElem
@@ -12,14 +13,17 @@ export LieAlgebraModule, LieAlgebraModuleElem
 export LieAlgebraModuleHom
 export LieSubalgebra
 export LinearLieAlgebra, LinearLieAlgebraElem
+export LSPathModel, LSPathModelElem
 export RootSpaceElem
 export RootSystem
+export TensorProductCrystal, TensorProductCrystalElem
 export WeightLattice, WeightLatticeElem
 export WeylGroup, WeylGroupElem
 export WeylOrbitIterator
 
 export abelian_lie_algebra
 export abstract_module
+export adapted_string
 export adjoint_matrix
 export any_non_ad_nilpotent_element
 export base_lie_algebra
@@ -43,12 +47,16 @@ export demazure_operator
 export derived_algebra
 export dim_of_simple_module
 export dominant_character
+export dominant_path
 export dominant_weights
+export ealpha, ealpha!
 export engel_subalgebra
 export exterior_power
+export falpha, falpha!
 export fundamental_weight
 export fundamental_weights
 export general_linear_lie_algebra
+export halpha
 export induced_map_on_symmetric_power
 export induced_map_on_tensor_power
 export is_ad_nilpotent
@@ -78,6 +86,8 @@ export killing_matrix
 export lie_algebra
 export longest_element
 export lower_central_series
+export ls_path_model
+export ls_sequence
 export matrix_repr_basis
 export negative_coroot
 export negative_coroots

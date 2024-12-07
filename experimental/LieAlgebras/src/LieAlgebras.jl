@@ -87,6 +87,7 @@ import ..Oscar:
   symbols,
   symmetric_power,
   tensor_product,
+  weight,
   weyl_vector,
   word,
   zero!,
@@ -96,7 +97,7 @@ import ..Oscar:
 
 Oscar.@import_all_serialization_functions
 
-import Base: getindex, deepcopy_internal, hash, issubset, iszero, parent, zero
+import Base: getindex, deepcopy_internal, hash, issubset, iszero, max, parent, zero
 
 include("exports.jl")
 
@@ -129,6 +130,7 @@ include("RootSystem.jl")
 include("WeightLattice.jl")
 include("DynkinDiagram.jl")
 include("WeylGroup.jl")
+include("PathModel.jl") # depends on WeylGroup.jl
 
 include("LieAlgebra.jl")
 include("AbstractLieAlgebra.jl")
