@@ -4,17 +4,21 @@
 #
 ###############################################################################
 
-abstract type KashiwaraCrystal <: AbstractAlgebra.Set end
+abstract type AbstractCrystal <: AbstractAlgebra.Set end
 
-abstract type KashiwaraCrystalElem <: AbstractAlgebra.SetElem end
+abstract type AbstractCrystalElem <: AbstractAlgebra.SetElem end
 
-struct LSPathModel
+abstract type PathModel <: AbstractCrystal end
+
+abstract type PathModelElem <: AbstractCrystalElem end
+
+struct LSPathModel <: PathModel
   wt::WeightLatticeElem
   ext::Dict{Vector{UInt8},ZZMatrix} # map from Weyl group elements to extremal weights
 
   function LSPathModel(wt::WeightLatticeElem)
     @req is_dominant(wt) "weight must be dominant"
-    return new(wt, Dict(UInt8[] => wt))
+    return new(wt, Dict(UInt8[] => coefficients(wt)))
   end
 end
 
@@ -23,7 +27,7 @@ struct LSPathSegment
   w::WeylGroupElem
 end
 
-struct LSPathModelElem <: KashiwaraCrystalElem
+struct LSPathModelElem <: PathModelElem
   parent::LSPathModel
   s::Vector{LSPathSegment}
 end

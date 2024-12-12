@@ -1,25 +1,40 @@
 # other
 
 @doc raw"""
-    adapted_string(b::KashiwaraCrystalElem, i::Vector{Int})
+    dominant_path(P::PathModel) -> PathModelElem
+
+Return the dominant path for `P`.
+"""
+function dominant_path(::PathModel)
+  error("not implemented")
+end
+
+@doc raw"""
+    is_domiant(p::PathModelElem) -> Bool
+
+Return `true` if `p` is the dominant path of its path model.
+"""
+function is_dominant(::PathModelElem)
+  error("not implemented")
+end
+
+@doc raw"""
+    adapted_string(b::PathModelElem, i::Vector{Int})
 
 Return the adapted string of `b` with respect to the $i$-string `i`.
 """
-function adapted_string(p::KashiwaraCrystalElem, rdec::Vector{Int})
+function adapted_string(p::PathModelElem, rdec::Vector{Int})
   s = zero(rdec)
   b = deepcopy(p)
   for i in 1:length(rdec)
-    s[i] = Base.eps(b, rdec[i]) # TODO: this will not work for non normal crystals
-    KashiwaraCrystal.e!(b, rdec[i], s[i])
+    s[i] = Crystal.eps(b, rdec[i])
+    Crystal.e!(b, rdec[i], s[i])
   end
   return s
 end
 
 ###############################################################################
-#
-#   LS path model
-#
-###############################################################################
+# LSPathModel
 
 function Base.show(io::IO, mime::MIME"text/plain", P::LSPathModel)
   #@show_name(io, P)
@@ -57,11 +72,20 @@ function ls_path_model(R::RootSystem, wt::Vector{<:IntegerUnion})
   return ls_path_model(WeightLatticeElem(R, wt))
 end
 
+@doc raw"""
+    root_system(P::LSPathModel) -> RootSystem
+    
+Return the root system of `P`.
+"""
+function root_system(P::LSPathModel)
+  return root_system(P.wt)
+end
+
 function _extremal_weight(P::LSPathModel, w::WeylGroupElem)
   wt = get(P.ext, word(w), nothing)
   if isnothing(wt)
     # we need to make a copy, because w may be modified
-    return get!(P.ext, deepcopy(word(w)), w * P.wt)
+    return get!(P.ext, deepcopy(word(w)), coefficients(P.wt * w))
   end
 
   return wt
@@ -72,18 +96,12 @@ function (P::LSPathModel)(wv::Vector{WeylGroupElem}, tv::Vector{<:RationalUnion}
   return LSPathModelElem(P, [LSPathSegment(t, w) for (t, w) in Iterators.zip(tv, wv)])
 end
 
-function (P::LSPathModel)(p::YTPathModelElem)
-  @req P.wt == parent(p).wt "dominant weights must match"
-
-  pp = dominant_path(P)
-  i = Int.(word(longest_element(weyl_group(root_system(P.wt)))))
-  KashiwaraCrystal.f!(pp, i, adapted_string(p, i))
-  return pp
+function dominant_path(P::LSPathModel)
+  return LSPathModelElem(P, [LSPathSegment(one(QQ), one(weyl_group(root_system(P))))])
 end
 
-function root_system(P::LSPathModel)
-  return root_system(P.wt)
-end
+###############################################################################
+# LSPathSegment
 
 function Base.hash(s::LSPathSegment, h::UInt)
   b = 0x73a37b46bd4d49b4 % UInt
@@ -97,6 +115,14 @@ function Base.:(==)(s1::LSPathSegment, s2::LSPathSegment)
   return s1.t == s2.t && s1.w == s2.w
 end
 
+###############################################################################
+# LSPathModelElem
+
+@doc raw"""
+    parent(p::LSPathModelElem) -> LSPathModel
+    
+Return the path model `p` is an element of.
+"""
 function parent(p::LSPathModelElem)
   return p.parent
 end
@@ -152,12 +178,20 @@ function expressify(p::LSPathModelElem, s=:e; context=nothing)
 end
 @enable_all_show_via_expressify LSPathModelElem
 
+function is_dominant(p::LSPathModelElem)
+  return is_empty(p.s)
+end
+
 @doc raw"""
     max(p::LSPathModelElem) -> WeylGroupElem
 
-Return the maximal element in the support of `p`.
+Return the maximal element in the support of `p` or nothing if `p` is dominant.
 """
 function Base.max(p::LSPathModelElem)
+  if is_dominant_path(p)
+    return nothing
+  end
+
   return p.s[1].w
 end
 
@@ -168,15 +202,6 @@ Return the LS sequence for `p`.
 """
 function ls_sequence(p::LSPathModelElem)
   return map(s -> s.w, p.s), [zero(QQ); accumulate((t, s) -> t + s.t, p.s; init=zero(QQ))]
-end
-
-@doc raw"""
-    dominant_path(P::LSPathModel) -> LSPathModelElem
-
-Return the dominant path for `P`.
-"""
-function dominant_path(P::LSPathModel)
-  return LSPathModelElem(P, [LSPathSegment(one(QQ), one(weyl_group(root_system(P))))])
 end
 
 @doc raw"""
@@ -192,9 +217,9 @@ function halpha(p::LSPathModelElem, i::Int)
   return h
 end
 
-# implement KashiwaraCrystalElem methods
+# implement Crystal interface methods
 
-function KashiwaraCrystal.e!(p::LSPathModelElem, i::Int)
+function Crystal.e!(p::LSPathModelElem, i::Int)
   h = halpha(p, i)
 
   j = argmin(h) # first time the global min is assumed
@@ -220,13 +245,13 @@ function KashiwaraCrystal.e!(p::LSPathModelElem, i::Int)
   end
 
   for l in k:(j - 1)
-    lmul!(p.s[l].w, i)
+    rmul!(p.s[l].w, i)
   end
 
   return p
 end
 
-function KashiwaraCrystal.f!(p::LSPathModelElem, i::Int)
+function Crystal.f!(p::LSPathModelElem, i::Int)
   h = halpha(p, i)
 
   # find the last time the global minimum is assumed
@@ -256,23 +281,23 @@ function KashiwaraCrystal.f!(p::LSPathModelElem, i::Int)
   end
 
   for l in j:(k - 1)
-    lmul!(p.s[l].w, i)
+    rmul!(p.s[l].w, i)
   end
 
   return p
 end
 
-function KashiwaraCrystal.eps(p::LSPathModelElem, i::Int)
+function Crystal.eps(p::LSPathModelElem, i::Int)
   return -Int(minimum(halpha(p, i)))
 end
 
-function KashiwaraCrystal.phi(p::LSPathModelElem, i::Int)
+function Crystal.phi(p::LSPathModelElem, i::Int)
   h = halpha(p, i)
   return Int(h[end]) - Int(minimum(h))
 end
 
-function KashiwaraCrystal.weight(p::LSPathModelElem)
-  v = sum(s -> mul!(QQ.(coefficients(_extremal_weight(parent(p), s.w))), s.t), p.s)
+function Crystal.weight(p::LSPathModelElem)
+  v = sum(s -> mul!(QQ.(_extremal_weight(parent(p), s.w)), s.t), p.s)
   return WeightLatticeElem(root_system(parent(p)), ZZ.(v))
 end
 
@@ -308,8 +333,8 @@ function (P::LSPathModel)(w::WeightLatticeElem)
   while true
     s = Int(w0[i])
 
-    mi = min(phi(a, s), nf[s] - num[s])
-    KashiwaraCrystal.f!(a, s, mi)
+    mi = min(Crystal.phi(a, s), nf[s] - num[s])
+    Crystal.f!(a, s, mi)
     num[s] += mi
     path[i] += mi
 
@@ -319,7 +344,7 @@ function (P::LSPathModel)(w::WeightLatticeElem)
         push!(points, deepcopy(a))
       end
 
-      KashiwaraCrystal.e!(a, s, path[i])
+      Crystal.e!(a, s, path[i])
       num[s] -= path[i]
       path[i] = 0
 
@@ -331,7 +356,7 @@ function (P::LSPathModel)(w::WeightLatticeElem)
       end
 
       s = Int(w0[i])
-      KashiwaraCrystal.e!(a, s)
+      Crystal.e!(a, s)
       num[s] -= 1
       path[i] -= 1
     end

@@ -112,6 +112,9 @@ include("CoxeterGroup.jl")
 include("DynkinDiagram.jl")
 include("WeylGroup.jl")
 
+include("KashiwaraCrystal.jl")
+include("PathModel.jl")
+
 include("LieAlgebra.jl")
 include("AbstractLieAlgebra.jl")
 include("LinearLieAlgebra.jl")

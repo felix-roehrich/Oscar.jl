@@ -2,7 +2,7 @@
 # should be included twice in LieAlgebras.jl, once to export from Oscar.LieAlgebras
 # into Oscar, and once to export from Oscar.
 
-export KashiwaraCrystal
+export Crystal
 
 export AbstractLieAlgebra, AbstractLieAlgebraElem
 export DirectSumLieAlgebra, DirectSumLieAlgebraElem
@@ -35,6 +35,7 @@ export demazure_operator
 export derived_algebra
 export dim_of_simple_module
 export dominant_character
+export dominant_path
 export dominant_weights
 export engel_subalgebra
 export exchange!
@@ -48,6 +49,7 @@ export is_self_normalizing
 export killing_matrix
 export lie_algebra
 export lower_central_series
+export ls_path_model
 export matrix_repr_basis
 export parabolic_subgroup
 export parabolic_subgroup_with_projection
