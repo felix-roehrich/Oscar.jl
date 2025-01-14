@@ -8,11 +8,11 @@ abstract type AbstractCrystal <: AbstractAlgebra.Set end
 
 abstract type AbstractCrystalElem <: AbstractAlgebra.SetElem end
 
-abstract type PathModel <: AbstractCrystal end
+abstract type AbstractPathModel <: AbstractCrystal end
 
-abstract type PathModelElem <: AbstractCrystalElem end
+abstract type AbstractPathModelElem <: AbstractCrystalElem end
 
-struct LSPathModel <: PathModel
+struct LSPathModel <: AbstractPathModel
   wt::WeightLatticeElem
   ext::Dict{Vector{UInt8},ZZMatrix} # map from Weyl group elements to extremal weights
 
@@ -27,7 +27,7 @@ struct LSPathSegment
   w::WeylGroupElem
 end
 
-struct LSPathModelElem <: PathModelElem
+struct LSPathModelElem <: AbstractPathModelElem
   parent::LSPathModel
   s::Vector{LSPathSegment}
 end

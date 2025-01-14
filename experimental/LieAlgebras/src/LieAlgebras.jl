@@ -62,6 +62,7 @@ import ..Oscar:
   induced_map_on_exterior_power,
   inv,
   is_abelian,
+  is_dominant,
   is_isomorphism,
   is_nilpotent,
   is_perfect,

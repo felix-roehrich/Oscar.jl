@@ -1,40 +1,68 @@
-# other
+module PathModel
+
+import ..Crystal: e, e!, f, f!, eps, phi, weight
+
+function h end
+
+end
 
 @doc raw"""
-    dominant_path(P::PathModel) -> PathModelElem
+    dominant_path(P::AbstractPathModel) -> PathModelElem
 
 Return the dominant path for `P`.
 """
-function dominant_path(::PathModel)
+function dominant_path(::AbstractPathModel)
   error("not implemented")
 end
 
 @doc raw"""
-    is_domiant(p::PathModelElem) -> Bool
+    highest_weight(::AbstractPathModel) -> WeightLatticeElem
+
+Return the highest weight of `P`.
+"""
+function highest_weight(P::LSPathModel)
+  error("not implemented")
+end
+
+@doc raw"""
+    is_dominant(p::AbstractPathModelElem) -> Bool
 
 Return `true` if `p` is the dominant path of its path model.
 """
-function is_dominant(::PathModelElem)
+function is_dominant(::AbstractPathModelElem)
   error("not implemented")
 end
 
 @doc raw"""
-    adapted_string(b::PathModelElem, i::Vector{Int})
+    adapted_string(b::AbstractPathModelElem, i::Vector{Int})
 
 Return the adapted string of `b` with respect to the $i$-string `i`.
 """
-function adapted_string(p::PathModelElem, rdec::Vector{Int})
+function adapted_string(p::AbstractPathModelElem, rdec::Vector{Int})
   s = zero(rdec)
   b = deepcopy(p)
   for i in 1:length(rdec)
-    s[i] = Crystal.eps(b, rdec[i])
-    Crystal.e!(b, rdec[i], s[i])
+    s[i] = PathModel.eps(b, rdec[i])
+    PathModel.e!(b, rdec[i], s[i])
   end
   return s
 end
 
 ###############################################################################
-# LSPathModel
+#
+#   LS Path Model
+#
+###############################################################################
+
+function _extremal_weight(P::LSPathModel, w::WeylGroupElem)
+  wt = get(P.ext, word(w), nothing)
+  if isnothing(wt)
+    # we need to make a copy, because w may be modified
+    return get!(P.ext, deepcopy(word(w)), coefficients(P.wt * w))
+  end
+
+  return wt
+end
 
 function Base.show(io::IO, mime::MIME"text/plain", P::LSPathModel)
   #@show_name(io, P)
@@ -57,7 +85,7 @@ end
 @doc raw"""
     ls_path_model(wt::WeightLatticeElem) -> LSPathModel
 
-Return the LS path model for the dominant weight `wt`.
+Return the LS path model a the dominant weight `wt`.
 """
 function ls_path_model(wt::WeightLatticeElem)
   return LSPathModel(wt)
@@ -66,38 +94,63 @@ end
 @doc raw"""
     ls_path_model(R::RootSystem, wt::Vector{<:IntegerUnion}) -> LSPathModel
 
-Return the LS path model for the root system `R` and dominant weight `wt`.
+Return the LS path model a the root system `R` and dominant weight `wt`.
 """
 function ls_path_model(R::RootSystem, wt::Vector{<:IntegerUnion})
   return ls_path_model(WeightLatticeElem(R, wt))
 end
 
 @doc raw"""
-    root_system(P::LSPathModel) -> RootSystem
+    (P::LSPathModel)(wv::Vector{WeylGroupElem}, tv::Vector{<:RationalUnion}) -> LSPathModelElem
     
-Return the root system of `P`.
+Construct the LS path model element for the LS path of class `highest_weight(P)`.
 """
-function root_system(P::LSPathModel)
-  return root_system(P.wt)
-end
-
-function _extremal_weight(P::LSPathModel, w::WeylGroupElem)
-  wt = get(P.ext, word(w), nothing)
-  if isnothing(wt)
-    # we need to make a copy, because w may be modified
-    return get!(P.ext, deepcopy(word(w)), coefficients(P.wt * w))
-  end
-
-  return wt
-end
-
-# TODO: the input here is counterintuitive
 function (P::LSPathModel)(wv::Vector{WeylGroupElem}, tv::Vector{<:RationalUnion})
+  @req length(wv) > 0 "vector may not be empty"
+  @req length(wv) == length(tv) || length(wv) == length(tv) - 1 "length mismatch"
+
+  ts = deepcopy(tv)
+  for i in eachindex(ts)
+    sub!(ts[i], ts[i], ts[i - 1])
+  end
+  return LSPathModelElem(
+    P, [LSPathSegment(deepcopy(t), w) for (t, w) in Iterators.zip(tv, wv)]
+  )
+end
+
+@doc raw"""
+    (P::LSPathModel)(wv::Vector{WeightLatticeElem}, tv::Vector{<:RationalUnion}) -> LSPathModelElem
+    
+Construct the LS path model element for the LS path of shape `highest_weight(P)`.
+"""
+function (P::LSPathModel)(wv::Vector{WeightLatticeElem}, tv::Vector{<:RationalUnion})
   return LSPathModelElem(P, [LSPathSegment(t, w) for (t, w) in Iterators.zip(tv, wv)])
+end
+
+@doc raw"""
+    (P::LSPathModel)(a::Vector{Tuple{WeylGroupElem, <:RationalUnion}}) -> LSPathModelElem
+    
+Construct the LS path model element given by an element of LS fan of monoids for `highest_weight(P)`.
+"""
+function (P::LSPathModel)(a::Vector{Tuple{WeylGroupElem,<:RationalUnion}})
+  return LSPathModelElem(P, [LSPathSegment(deepcopy(t), deepcopy(w)) for (t, w) in a])
 end
 
 function dominant_path(P::LSPathModel)
   return LSPathModelElem(P, [LSPathSegment(one(QQ), one(weyl_group(root_system(P))))])
+end
+
+function highest_weight(P::LSPathModel)
+  return P.wt
+end
+
+@doc raw"""
+    root_system(P::LSPathModel) -> RootSystem
+    
+Return the underlying root system of `P`.
+"""
+function root_system(P::LSPathModel)
+  return root_system(P.wt)
 end
 
 ###############################################################################
@@ -188,7 +241,7 @@ end
 Return the maximal element in the support of `p` or nothing if `p` is dominant.
 """
 function Base.max(p::LSPathModelElem)
-  if is_dominant_path(p)
+  if is_dominant(p)
     return nothing
   end
 
@@ -205,11 +258,11 @@ function ls_sequence(p::LSPathModelElem)
 end
 
 @doc raw"""
-    halpha(p::LSPathModelElem, i::Int) -> Vector{QQFieldElem}
+    PathModel.h(p::LSPathModelElem, i::Int) -> Vector{QQFieldElem}
 
 Return the rational turning points of the function $h_\alpha$ for `p` where $\alpha$ is the `i`th simple root.
 """
-function halpha(p::LSPathModelElem, i::Int)
+function PathModel.h(p::LSPathModelElem, i::Int)
   h = sizehint!([zero(QQ)], length(p.s) + 1)
   for k in 1:length(p.s)
     push!(h, h[k] + p.s[k].t * _extremal_weight(parent(p), p.s[k].w)[i])
@@ -219,8 +272,8 @@ end
 
 # implement Crystal interface methods
 
-function Crystal.e!(p::LSPathModelElem, i::Int)
-  h = halpha(p, i)
+function PathModel.e!(p::LSPathModelElem, i::Int)
+  h = PathModel.h(p, i)
 
   j = argmin(h) # first time the global min is assumed
   k = findprev(>=(h[j] + 1), h, j - 1)
@@ -251,8 +304,8 @@ function Crystal.e!(p::LSPathModelElem, i::Int)
   return p
 end
 
-function Crystal.f!(p::LSPathModelElem, i::Int)
-  h = halpha(p, i)
+function PathModel.f!(p::LSPathModelElem, i::Int)
+  h = PathModel.h(p, i)
 
   # find the last time the global minimum is assumed
   j = 1
@@ -281,22 +334,22 @@ function Crystal.f!(p::LSPathModelElem, i::Int)
   end
 
   for l in j:(k - 1)
-    rmul!(p.s[l].w, i)
+    Oscar.rmul!(p.s[l].w, i)
   end
 
   return p
 end
 
-function Crystal.eps(p::LSPathModelElem, i::Int)
-  return -Int(minimum(halpha(p, i)))
+function PathModel.eps(p::LSPathModelElem, i::Int)
+  return -Int(minimum(PathModel.h(p, i)))
 end
 
-function Crystal.phi(p::LSPathModelElem, i::Int)
-  h = halpha(p, i)
+function PathModel.phi(p::LSPathModelElem, i::Int)
+  h = PathModel.h(p, i)
   return Int(h[end]) - Int(minimum(h))
 end
 
-function Crystal.weight(p::LSPathModelElem)
+function PathModel.weight(p::LSPathModelElem)
   v = sum(s -> mul!(QQ.(_extremal_weight(parent(p), s.w)), s.t), p.s)
   return WeightLatticeElem(root_system(parent(p)), ZZ.(v))
 end
@@ -307,8 +360,8 @@ function iszero(p::LSPathModelElem)
   return isempty(p.s)
 end
 
-function (P::LSPathModel)(v::Vector{<:IntegerUnion})
-  return P(WeightLatticeElem(root_system(P), v))
+function (P::LSPathModel)(wt::Vector{<:IntegerUnion})
+  return P(WeightLatticeElem(root_system(P), wt))
 end
 
 function (P::LSPathModel)(w::WeightLatticeElem)
@@ -333,8 +386,8 @@ function (P::LSPathModel)(w::WeightLatticeElem)
   while true
     s = Int(w0[i])
 
-    mi = min(Crystal.phi(a, s), nf[s] - num[s])
-    Crystal.f!(a, s, mi)
+    mi = min(PathModel.phi(a, s), nf[s] - num[s])
+    PathModel.f!(a, s, mi)
     num[s] += mi
     path[i] += mi
 
@@ -344,7 +397,7 @@ function (P::LSPathModel)(w::WeightLatticeElem)
         push!(points, deepcopy(a))
       end
 
-      Crystal.e!(a, s, path[i])
+      PathModel.e!(a, s, path[i])
       num[s] -= path[i]
       path[i] = 0
 
@@ -356,7 +409,7 @@ function (P::LSPathModel)(w::WeightLatticeElem)
       end
 
       s = Int(w0[i])
-      Crystal.e!(a, s)
+      PathModel.e!(a, s)
       num[s] -= 1
       path[i] -= 1
     end
