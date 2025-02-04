@@ -20,7 +20,7 @@ end
 
 Return the highest weight of `P`.
 """
-function highest_weight(P::LSPathModel)
+function highest_weight(::AbstractPathModel)
   error("not implemented")
 end
 
@@ -236,19 +236,6 @@ function is_dominant(p::LSPathModelElem)
 end
 
 @doc raw"""
-    max(p::LSPathModelElem) -> WeylGroupElem
-
-Return the maximal element in the support of `p` or nothing if `p` is dominant.
-"""
-function Base.max(p::LSPathModelElem)
-  if is_dominant(p)
-    return nothing
-  end
-
-  return p.s[1].w
-end
-
-@doc raw"""
     ls_sequence(p::LSPathModelElem) -> Tuple{Vector{WeylGroupElem}, Vector{QQFieldElem}}
 
 Return the LS sequence for `p`.
@@ -260,7 +247,7 @@ end
 @doc raw"""
     PathModel.h(p::LSPathModelElem, i::Int) -> Vector{QQFieldElem}
 
-Return the rational turning points of the function $h_\alpha$ for `p` where $\alpha$ is the `i`th simple root.
+Return the turning points of the function $h_\alpha$ for `p` where $\alpha$ is the `i`th simple root.
 """
 function PathModel.h(p::LSPathModelElem, i::Int)
   h = sizehint!([zero(QQ)], length(p.s) + 1)

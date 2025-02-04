@@ -1,73 +1,41 @@
 @testset "LieAlgebras.PathModel" begin
-  GAP.Packages.load("QuaGroup")
+  #GAP.Packages.load("QuaGroup")
 
-  @testset "StraightLinePathModel" begin
-    #=@testset "falpha" begin
-      R = root_system(:A, 2)
-      P = path_model(R, [1, 1])
-      dom = dominant_path(P)
-
-      @test falpha(dom, 1) !== dom
-      @test falpha(dom, 1, 1) !== dom
-      @test falpha(dom, [1], [1]) !== dom
-    end=#
-
-    @testset "(P::LSPathModel)(wt::WeightLatticeElem)" begin
+  @testset "LSPathModel" begin
+    @testset "dominant_path" begin
       R = root_system(:A, 3)
-      P = straight_line_path_model(R, [2, 2, 2])
-      L = lie_algebra(QQ, :A, 3)
 
-      char = dominant_character(L, [2, 2, 2])
-      for k in keys(char)
-        @test char[k] == length(P(k))
+      wt = WeightLatticeElem(R, [1, 1, 1])
+      P = LSPathModel(wt)
+
+      p0 = dominant_path(P)
+      @test weight(p0) == wt
+      @test all(PathModel.eps(p0, i) == zero(QQ) for i in 1:rank(R))
+      @test all(PathModel.phi(p0, i) == wt[i] for i in 1:rank(R))
+    end
+
+    @testset "PathModel.e" begin
+      R = root_system(:A, 3)
+      p = PathModel.f(p0, 1)
+
+      for i in 1:rank(R)
+        p2 = PathModel.f(p, i)
+        @test PathModel.eps(p2, i) == PathModel.eps(p, i) + 1
+        @test PathModel.phi(p2, i) == PathModel.phi(p, i) - 1
+        @test PathModel.weight(p2) == PathModel.weight(p) - simple_root(R, i)
       end
     end
 
-    @test "falpha" begin
-      # test that everything is copied
-    end
-
-    #=@testset "falpha!" begin
+    @testset "PathModel.f" begin
       R = root_system(:A, 3)
-      P = straight_line_path_model(R, [2, 2, 2])
-      g = dominant_path(P)
+      p = PathModel.f(p0, 1)
 
-      gR = GAP.Globals.RootSystem(GAP.Obj("A"), 3)
-      gp = GAP.Globals.DominantLSPath(gR, GAP.Obj([2, 2, 2]))
-
-      w0 = longest_element(weyl_group(R))
-      path = zeros(length(w0))
-
-      n = 1
-      while true
-        ii = Int(w0[n])
-        while Oscar.LieAlgebras.phi(g, ii) > 0
-          path[n] += 1
-          falpha!(g, ii)
-          gp = GAP.Globals.Falpha(gp, ii)
-          @test gp != GAP.Globals.fail
-
-          ls = GAP.Globals.LSSequence(gp)
-          for (j, s) in Iterators.enumerate(Iterators.accumulate(+, g.d))
-            @test QQ(ls[2][j+1]) == s # GAP starts at 0
-          end
-          for (j, w) in Iterators.enumerate(g.s)
-            wt = w*P.wt
-            for k in 1:length(ls[1][j])
-              @test wt[k] == ls[1][j][k]
-            end
-          end
-        end
-
-        @test iszero(falpha(g, ii))
-        @test GAP.Globals.Falpha(gp, ii) == GAP.Globals.fail
-
-        if n < length(w0)
-          n += 1
-        else
-          n -= 1
-        end
+      for i in 1:rank(R)
+        p2 = PathModel.e(p, i)
+        @test PathModel.eps(p2, i) == PathModel.eps(p, i) - 1
+        @test PathModel.phi(p2, i) == PathModel.phi(p, i) + 1
+        @test PathModel.weight(p2) == PathModel.weight(p) + simple_root(R, i)
       end
-    end =#
+    end
   end
 end
