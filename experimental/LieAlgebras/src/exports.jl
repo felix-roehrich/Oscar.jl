@@ -15,6 +15,7 @@ export LieSubalgebra
 export LinearLieAlgebra, LinearLieAlgebraElem
 
 export LSPathModel, LSPathModelElem
+export PathModel
 
 export abelian_lie_algebra
 export abstract_module

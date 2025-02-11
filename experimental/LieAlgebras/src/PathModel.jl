@@ -101,38 +101,11 @@ function ls_path_model(R::RootSystem, wt::Vector{<:IntegerUnion})
 end
 
 @doc raw"""
-    (P::LSPathModel)(wv::Vector{WeylGroupElem}, tv::Vector{<:RationalUnion}) -> LSPathModelElem
-    
-Construct the LS path model element for the LS path of class `highest_weight(P)`.
-"""
-function (P::LSPathModel)(wv::Vector{WeylGroupElem}, tv::Vector{<:RationalUnion})
-  @req length(wv) > 0 "vector may not be empty"
-  @req length(wv) == length(tv) || length(wv) == length(tv) - 1 "length mismatch"
-
-  ts = deepcopy(tv)
-  for i in eachindex(ts)
-    sub!(ts[i], ts[i], ts[i - 1])
-  end
-  return LSPathModelElem(
-    P, [LSPathSegment(deepcopy(t), w) for (t, w) in Iterators.zip(tv, wv)]
-  )
-end
-
-@doc raw"""
-    (P::LSPathModel)(wv::Vector{WeightLatticeElem}, tv::Vector{<:RationalUnion}) -> LSPathModelElem
-    
-Construct the LS path model element for the LS path of shape `highest_weight(P)`.
-"""
-function (P::LSPathModel)(wv::Vector{WeightLatticeElem}, tv::Vector{<:RationalUnion})
-  return LSPathModelElem(P, [LSPathSegment(t, w) for (t, w) in Iterators.zip(tv, wv)])
-end
-
-@doc raw"""
     (P::LSPathModel)(a::Vector{Tuple{WeylGroupElem, <:RationalUnion}}) -> LSPathModelElem
     
-Construct the LS path model element given by an element of LS fan of monoids for `highest_weight(P)`.
+Construct the LS path model element given by an element in the LS fan of monoids for `highest_weight(P)`.
 """
-function (P::LSPathModel)(a::Vector{Tuple{WeylGroupElem,<:RationalUnion}})
+function (P::LSPathModel)(a::Vector{Tuple{<:RationalUnion,WeylGroupElem}})
   return LSPathModelElem(P, [LSPathSegment(deepcopy(t), deepcopy(w)) for (t, w) in a])
 end
 
@@ -232,7 +205,12 @@ end
 @enable_all_show_via_expressify LSPathModelElem
 
 function is_dominant(p::LSPathModelElem)
-  return is_empty(p.s)
+  if length(p.s) > 1
+    return false
+  end
+
+  s = only(p.s)
+  return isone(s.t) && isone(s.w)
 end
 
 @doc raw"""
@@ -343,16 +321,12 @@ end
 
 # LSPathModel specific methods
 
-function iszero(p::LSPathModelElem)
-  return isempty(p.s)
-end
-
 function (P::LSPathModel)(wt::Vector{<:IntegerUnion})
   return P(WeightLatticeElem(root_system(P), wt))
 end
 
 function (P::LSPathModel)(w::WeightLatticeElem)
-  nf = cartan_matrix_inv(root_system(P)) * coefficients(P.wt - w)
+  nf = coefficients(P.wt - w) * cartan_matrix_inv(root_system(P))
   if !all(is_integral, nf)
     return LSPathModelElem[]
   end

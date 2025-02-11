@@ -8,6 +8,7 @@ using Oscar:
   GAPWrap,
   IntegerUnion,
   MapHeader,
+  rmul!,
   set_root_system_type!
 
 import Random
@@ -33,6 +34,7 @@ import ..Oscar:
   canonical_projection,
   canonical_projections,
   cartan_matrix,
+  cartan_matrix_inv,
   center,
   centralizer,
   character,
@@ -113,7 +115,7 @@ include("CoxeterGroup.jl")
 include("DynkinDiagram.jl")
 include("WeylGroup.jl")
 
-include("KashiwaraCrystal.jl")
+include("Crystal.jl")
 include("PathModel.jl")
 
 include("LieAlgebra.jl")
