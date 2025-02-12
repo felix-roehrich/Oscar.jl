@@ -105,7 +105,7 @@ end
     
 Construct the LS path model element given by an element in the LS fan of monoids for `highest_weight(P)`.
 """
-function (P::LSPathModel)(a::Vector{Tuple{<:RationalUnion,WeylGroupElem}})
+function (P::LSPathModel)(a::Vector{<:Tuple{RationalUnion,WeylGroupElem}})
   return LSPathModelElem(P, [LSPathSegment(deepcopy(t), deepcopy(w)) for (t, w) in a])
 end
 
