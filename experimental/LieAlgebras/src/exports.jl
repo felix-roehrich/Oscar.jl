@@ -11,6 +11,7 @@ export LieAlgebraModule, LieAlgebraModuleElem
 export LieAlgebraModuleHom
 export LieSubalgebra
 export LinearLieAlgebra, LinearLieAlgebraElem
+export QuantumGroup, QuantumGroupElem
 
 export abelian_lie_algebra
 export abstract_module
@@ -42,6 +43,7 @@ export lower_central_series
 export matrix_repr_basis
 export parabolic_subgroup
 export parabolic_subgroup_with_projection
+export quantum_group
 export show_dynkin_diagram
 export simple_module
 export special_linear_lie_algebra
