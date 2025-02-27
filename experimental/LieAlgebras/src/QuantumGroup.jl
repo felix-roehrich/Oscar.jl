@@ -1,3 +1,21 @@
+using AbstractAlgebra.Generic: LaurentPolyWrap
+import ..Oscar: add!, addmul!, mul!, neg!, sub!, submul!, one
+import ..Oscar:
+  coefficient_ring, leading_coefficient, leading_exponent_vector, leading_monomial
+
+function Nemo.exponent_vector!(
+  z::Vector{Int}, a::AbstractAlgebra.Generic.MPoly{T}, i::Int
+) where {T<:RingElement}
+  copy!(z, a.exps[:, i])
+  reverse!(z)
+  return z
+end
+
+struct PBWAlgModule
+  alg::PBWAlgRing
+  sdata::Singular.smodule
+end
+
 struct QuantumGroup
   A::Any#::LaurentPolynomialRing
 
@@ -27,109 +45,238 @@ function root_system(U::QuantumGroup)
   return U.root_system
 end
 
-struct QuantumGroupElem
+function (U::QuantumGroup)(x::PBWAlgElem)
+  @req parent(x) == U.alg "parent mismatch"
+  return QuantumGroupElem(U, x)
+end
+
+function one(U::QuantumGroup)
+  return QuantumGroupElem(U, one(U.alg))
+end
+
+function zero(U::QuantumGroup)
+  return QuantumGroupElem(U, zero(U.alg))
+end
+
+function coefficient_ring(U::QuantumGroup)
+  return coefficient_ring(U.alg)
+end
+
+function gen(U::QuantumGroup, i::Int)
+  return QuantumGroupElem(U, U.gens[i])
+end
+
+function gens(U::QuantumGroup)
+  return [gen(U, i) for i in 1:length(U.gens)]
+end
+
+mutable struct QuantumGroupElem
   U::QuantumGroup
   elem::PBWAlgElem
+end
+
+function Base.show(io::IO, x::QuantumGroupElem)
+  return show(io, x.elem)
+end
+
+function Base.deepcopy_internal(x::QuantumGroupElem, dict::IdDict)
+  return get!(dict, x, QuantumGroupElem(parent(x), deepcopy_internal(x.elem, dict)))
+end
+
+function Base.hash(x::QuantumGroupElem, h::UInt)
+  b = 0xe2cb30215ca391a1 % UInt
+  h = hash(parent(x), h)
+  h = hash(x.elem, h)
+
+  return xor(h, b)
 end
 
 function parent(x::QuantumGroupElem)
   return x.U
 end
 
+###############################################################################
+
+function iszero(x::QuantumGroupElem)
+  return iszero(x.elem)
+end
+
+function zero(x::QuantumGroupElem)
+  return zero(parent(x))
+end
+
+function zero!(x::QuantumGroupElem)
+  x.elem = zero!(x.elem)
+  return x
+end
+
+function one(x::QuantumGroupElem)
+  return one(parent(x))
+end
+
+###############################################################################
+
+function add!(z::QuantumGroupElem, x::QuantumGroupElem, y::QuantumGroupElem)
+  z.elem = add!(z.elem, x.elem, y.elem)
+  return z
+end
+
+function add!(x::QuantumGroupElem, y::QuantumGroupElem)
+  return add!(x, x, y)
+end
+
+function addmul!(z::QuantumGroupElem, x::QuantumGroupElem, a)
+  z.elem = addmul!(z.elem, x.elem, a)
+  return z
+end
+
+function mul!(z::QuantumGroupElem, x::QuantumGroupElem, y::QuantumGroupElem)
+  z.elem = mul!(z.elem, x.elem, y.elem)
+  return z
+end
+
+function mul!(x::QuantumGroupElem, y::QuantumGroupElem)
+  return mul!(x, x, y)
+end
+
+function mul!(z::QuantumGroupElem, x::QuantumGroupElem, a)
+  z.elem = mul!(z.elem, x.elem, a)
+  return z
+end
+
+function mul!(x::QuantumGroupElem, a)
+  return mul!(x, x, a)
+end
+
+function neg!(z::QuantumGroupElem, x::QuantumGroupElem)
+  z.elem = neg!(z.elem, x.elem)
+  return z
+end
+
+function neg!(x::QuantumGroupElem)
+  return neg!(x, x)
+end
+
+function sub!(z::QuantumGroupElem, x::QuantumGroupElem, y::QuantumGroupElem)
+  z.elem = sub!(z.elem, x.elem, y.elem)
+  return z
+end
+
+function sub!(x::QuantumGroupElem, y::QuantumGroupElem)
+  return sub!(x, x, y)
+end
+
+function submul!(z::QuantumGroupElem, x::QuantumGroupElem, a)
+  z.elem = submul!(z.elem, x.elem, a)
+  return z
+end
+
+function Base.:*(x::QuantumGroupElem, y::QuantumGroupElem)
+  return mul!(deepcopy(x), y)
+end
+
+function Base.:*(x::QuantumGroupElem, a)
+  return mul!(deepcopy(x), a)
+end
+
+function Base.:*(a::LaurentPolyWrap, x::QuantumGroupElem)
+  return mul!(deepcopy(x), coefficient_ring(parent(x))(a))
+end
+
+function Base.:+(x::QuantumGroupElem, y::QuantumGroupElem)
+  return add!(deepcopy(x), y)
+end
+
+function Base.:-(x::QuantumGroupElem, y::QuantumGroupElem)
+  return sub!(deepcopy(x), y)
+end
+
+function Base.:-(x::QuantumGroupElem)
+  return neg!(deepcopy(x))
+end
+
+function Base.:^(x::QuantumGroupElem, n::Int)
+  return QuantumGroupElem(parent(x), x.elem^n)
+end
+
+function Base.:(==)(x::QuantumGroupElem, y::QuantumGroupElem)
+  return parent(x) == parent(y) && x.elem == y.elem
+end
+
+###############################################################################
+
+function leading_coefficient(x::QuantumGroupElem)
+  return leading_coefficient(x.elem)
+end
+
+function leading_exponent_vector(x::QuantumGroupElem)
+  return leading_exponent_vector(x.elem)
+end
+
+function leading_monomial(x::QuantumGroupElem)
+  return QuantumGroupElem(parent(x), leading_monomial(x.elem))
+end
+
+###############################################################################
+#
+#   Quantum Group constructor
+#
+###############################################################################
+
 function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
   A, q = laurent_polynomial_ring(ZZ, "q")
   QA = fraction_field(A)
   P, theta = polynomial_ring(QA, :F => 1:length(w0))
 
-  # compute the index of the positive root from w0 in R.positive_roots
-  refl = weyl_group(R).refl
-  w0_pos = zeros(Int, length(w0))
-  pos_w0 = zeros(Int, length(w0))
-  for i in 1:length(w0)
-    beta = w0[i]
-    for j in (i - 1):-1:1
-      beta = refl[w0[j], beta]
-    end
-    w0_pos[i] = beta
-    pos_w0[beta] = i
-  end
+  # for now we rely on the QuaGroup package to compute the PBW relations
+  GAP.Packages.load("QuaGroup")
+  gapR = GAP.Globals.Objectify(
+    GAP.Globals.NewType(
+      GAP.Globals.NewFamily(GAP.GapObj("RootSystemFam"), GAP.Globals.IsObject),
+      GAP.evalstr("IsAttributeStoringRep and IsRootSystem"),
+    ),
+    GAP.evalstr("rec()"),
+  )
 
-  rels = zero_matrix(P, length(w0), length(w0))
-  root = zero(RootSpaceElem, R)
+  gapSim = GAP.GapObj(map(r -> GAP.GapObj(coefficients(r))[1], (simple_roots(R))))
+  gapPos = GAP.GapObj(map(r -> GAP.GapObj(coefficients(r))[1], (positive_roots(R))))
+  gapBil = GAP.GapObj(Oscar.bilinear_form(R))
 
-  nsim = number_of_simple_roots(R)
+  GAP.Globals.SetPositiveRoots(gapR, gapPos)
+  GAP.Globals.SetNegativeRoots(gapR, -gapPos)
+  GAP.Globals.SetSimpleSystem(gapR, gapSim)
+  GAP.Globals.SetCartanMatrix(gapR, GAP.Obj(cartan_matrix(R)))
+  GAP.Globals.SetBilinearFormMat(gapR, gapBil)
+  GAP.Globals.SetPositiveRootsNF(gapR, gapPos)
+  GAP.Globals.SetSimpleSystemNF(gapR, gapSim)
+  GAP.Globals.SetBilinearFormMatNF(gapR, gapBil)
+  GAP.Globals.SetTypeOfRootSystem(
+    gapR, collect(Iterators.flatmap(t -> GAP.GapObj.(t), root_system_type(R)))
+  )
+
+  gapU = GAP.Globals.QuantizedUEA(gapR)
+  gapF = GAP.Globals.GeneratorsOfAlgebra(gapU)
+
+  # set rels
   npos = number_of_positive_roots(R)
+  rels = zero_matrix(P, npos, npos)
 
+  term = one(P)
   for i in 1:npos, j in (i + 1):npos
-    if pos_w0[i] > pos_w0[j]
-      i, j = j, i
-    end
-    ij = Int(
-      dot(
-        coefficients(positive_root(R, i)) * cartan_matrix(R),
-        coefficients(positive_root(R, j)),
-      ),
-    )
-
-    if ij >= 0
-      k = l = 0
-      for n in 1:i
-        root = sub!(root, positive_root(R, j), positive_root(R, n))
-        t, l = is_positive_root_with_index(root)
-        if t
-          k = n
-          break
+    rep = Oscar.GAPWrap.ExtRepOfObj(gapF[j] * gapF[i])
+    for n in 1:2:length(rep)
+      for m in 1:2:length(rep[n])
+        for _ in 1:rep[n][m + 1]
+          term = mul!(term, theta[rep[n][m]])
         end
       end
-
-      # l == 0 means that this a commutation relation
-      if l == 0
-        rels[pos_w0[i], pos_w0[j]] = theta[pos_w0[i]] * theta[pos_w0[j]]
-        continue
+      coeffRep = GAP.Globals.CoefficientsOfLaurentPolynomial(rep[n + 1])
+      coeff = zero(QA)
+      for n in 1:length(coeffRep[1])
+        coeff = addmul!(coeff, QA(q)^(n + coeffRep[2] - 1), coeffRep[1][n])
       end
-
-      # compute new relation from lower relations
-      rel = one(P)
-      if pos_w0[i] < pos_w0[k]
-        rel = mul!(rel, rels[pos_w0[i], pos_w0[k]])
-      else
-        rel = mul!(rel, theta[pos_w0[k]] * theta[pos_w0[i]])
-      end
-      if pos_w0[i] < pos_w0[l]
-        rel = mul!(rel, rels[pos_w0[i], pos_w0[l]])
-      else
-        rel = mul!(rel, theta[pos_w0[l]] * theta[pos_w0[i]])
-      end
-      println(rel)
-
-      s = one(P)
-      for t in terms(rels[pos_w0[k], pos_w0[l]])
-        exp = leading_exponent_vector(t)
-        if !iszero(exp[pos_w0[j]])
-          continue
-        end
-
-        for n in eachindex(exp)
-          for _ in 1:exp[n]
-            if pos_w0[i] < n
-              s = mul!(s, rels[pos_w0[i], n])
-            else
-              s = mul!(s, theta[n] * theta[pos_w0[i]])
-            end
-          end
-        end
-        rel = sub!(rel, s)
-        s = one!(s)
-      end
-      println("ij = $i$j")
-      println(rel)
-      rel = add!(rel, theta[pos_w0[i]] * theta[pos_w0[j]])
-      rels[pos_w0[i], pos_w0[j]] = rel
-    elseif ij == -1
-      root = add!(vec, positive_root(R, i), positive_root(R, j))
-      _, l = is_positive_root_with_index(root)
-      rels[pos_w0[i], pos_w0[j]] =
-        theta[pos_w0[l]] + q^-ij * theta[pos_w0[i]] * theta[pos_w0[j]]
+      rels[i, j] = addmul!(rels[i, j], term, coeff)
+      term = one!(term)
     end
   end
 
@@ -149,6 +296,12 @@ end
 function _terms(x::QuantumGroupElem)
   return terms(x.elem)
 end
+
+###############################################################################
+#
+#   Standard automorphisms
+#
+###############################################################################
 
 function bar_involution(U::QuantumGroup)
   R = root_system(U)
@@ -222,30 +375,78 @@ function bar_involution(U::QuantumGroup)
           t = mul!(t, img[i])
         end
       end
-      val = addmul!(val, t, leading_coefficient(term))
+      val = addmul!(val, t, evaluate(leading_coefficient(term), U.q^-1))
+      t = one!(t)
     end
 
     return QuantumGroupElem(U, val)
   end
 end
 
-#=
+###############################################################################
+#
+#   Canonical basis
+#
+###############################################################################
+
+function _canonical_basis_elem(U::QuantumGroup, b::Vector{Int})
+  datum = Int.(b)
+  bar = bar_involution(U)
+  return get!(U.canonical_basis, datum) do
+    F = one(U)
+    for i in 1:length(datum)
+      for _ in 1:datum[i]
+        F = mul!(F, gen(U, i))
+      end
+      mul!(F, inv(quantum_factorial(U, datum[i])))
+    end
+
+    G = F
+    F = sub!(bar(F), F)
+    n = 0
+    while !iszero(F)
+      lc = numerator(leading_coefficient(F))
+      c = coefficient_ring(U)(
+        parent(lc.poly)(
+          [zero(ZZ); (coeff(lc.poly, n) for n in (-lc.mindeg + 1):degree(lc.poly))...]
+        ),
+      )
+
+      elem = canonical_basis_elem(U, leading_exponent_vector(F))
+      G = addmul!(G, elem, c)
+      F = submul!(F, elem, div(leading_coefficient(F), leading_coefficient(elem)))
+      n += 1
+      if n > 2
+        error("infinite loop")
+      end
+    end
+
+    return G.elem
+  end
+end
+
+function canonical_basis_elem(U::QuantumGroup, b::Vector{Int})
+  return QuantumGroupElem(U, _canonical_basis_elem(U, b))
+end
+
 function quantum_integer(U::QuantumGroup, n::Int)
-  z = zero(U.q)
+  field = coefficient_ring(U.alg)
+  z = zero(field)
   for i in (-n + 1):2:(n - 1)
-    z = add!(z, U.q^i)
+    z = add!(z, field(U.q)^i)
   end
   return z
 end
 
 function quantum_factorial(U::QuantumGroup, n::Int)
-  z = one(U.q)
+  z = one(coefficient_ring(U.alg))
   for i in 1:n
     z = mul!(z, quantum_integer(U, i))
   end
   return z
 end
 
+#=
 function quantum_binomial(U::QuantumGroup, n::Int, k::Int)
   @req k >= 0 "k must be non-negative"
 
@@ -263,31 +464,10 @@ function set_canonical_basis_elem!(U::QuantumGroup, b::Vector{Int}, x::QuantumGr
   return U.canonical_basis[b] = x.elem
 end
 
-function canonical_basis_elem(U::QuantumGroup, b::Vector{Int})
-  datum = Int.(b)
-  return get!(U.canonical_basis, datum) do
-    F = one(U.alg)
-    bar = bar_involution(U)
-    for i in 1:length(datum)
-      for _ in 1:datum[i]
-        F = mul!(F, U.gens[i])
-      end
-    end
-
-    G = deepcopy(F)
-    F = sub!(F, bar(F))
-    while !iszero(F)
-      lc = leading_coefficient(F)
-      c = parent(lc.poly)(
-        [zero(ZZ); (coeff(lc.poly, n) for n in (-lc.mindeg + 1):degree(lc.poly))...]
-      )
-      elem = canonical_basis_elem(U)
-
-      G = addmul!(G, elem, c)
-      F = sub!(F, elem)
-    end
-
-    return F
-  end
-end
 =#
+
+###############################################################################
+#
+#   Internal functions
+#
+###############################################################################

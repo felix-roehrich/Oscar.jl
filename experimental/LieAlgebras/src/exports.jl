@@ -24,9 +24,11 @@ export adjoint_matrix
 export any_non_ad_nilpotent_element
 export adapted_string
 export apply_braid_move!
+export bar_involution
 export base_lie_algebra
 export bracket
 export braid_moves
+export canonical_basis_elem
 export cartan_subalgebra
 export chevalley_basis
 export coerce_to_lie_algebra_elem
