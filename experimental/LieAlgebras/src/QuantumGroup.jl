@@ -1,7 +1,7 @@
 using AbstractAlgebra.Generic: LaurentPolyWrap
-import ..Oscar: add!, addmul!, mul!, neg!, sub!, submul!, one
+import ..Oscar: add!, addmul!, div!, mul!, neg!, sub!, submul!, one
 import ..Oscar:
-  coefficient_ring, leading_coefficient, leading_exponent_vector, leading_monomial
+  coefficient_ring, leading_coefficient, leading_exponent_vector, leading_monomial, trailing_coefficient
 
 function Nemo.exponent_vector!(
   z::Vector{Int}, a::AbstractAlgebra.Generic.MPoly{T}, i::Int
@@ -70,14 +70,40 @@ function gens(U::QuantumGroup)
   return [gen(U, i) for i in 1:length(U.gens)]
 end
 
+function quantum_parameter(U::QuantumGroup)
+  return U.q
+end
+
+@doc raw"""
+    quantum_parameter(U::QuantumGroup, i::Int) -> Int
+    
+Return the quantum parameter for the `i`-th positive root (ordered in convex order).
+"""
+function quantum_parameter(U::QuantumGroup, i::Int)
+  return U.qi[i]
+end
+
 mutable struct QuantumGroupElem
   U::QuantumGroup
   elem::PBWAlgElem
 end
 
-function Base.show(io::IO, x::QuantumGroupElem)
-  return show(io, x.elem)
+function expressify(x::QuantumGroupElem; context=nothing)
+  expr = Expr(:call, :+)
+  for t in terms(x.elem)
+    exp = leading_exponent_vector(t)
+    coeff = leading_coefficient(t)
+    for i in 1:length(exp)
+      coeff = mul!(coeff, quantum_factorial(exp[i], parent(x).qi[i]))
+    end
+    push!(expr.args, Expr(:call, :*, expressify(coeff),
+      (string("F[$i]", exp[i] > 1 ? "^($(exp[i]))" : "") for i in 1:length(exp) if exp[i] > 0)...
+    ))
+  end
+  return expr
 end
+@enable_all_show_via_expressify QuantumGroupElem
+
 
 function Base.deepcopy_internal(x::QuantumGroupElem, dict::IdDict)
   return get!(dict, x, QuantumGroupElem(parent(x), deepcopy_internal(x.elem, dict)))
@@ -128,6 +154,15 @@ end
 function addmul!(z::QuantumGroupElem, x::QuantumGroupElem, a)
   z.elem = addmul!(z.elem, x.elem, a)
   return z
+end
+
+function div!(z::QuantumGroupElem, x::QuantumGroupElem, a)
+  z.elem = mul!(z.elem, x.elem, inv(a)) # TODO: use div!, when possible
+  return z
+end
+
+function div!(x::QuantumGroupElem, a)
+  return div!(x, x, a)
 end
 
 function mul!(z::QuantumGroupElem, x::QuantumGroupElem, y::QuantumGroupElem)
@@ -183,6 +218,14 @@ function Base.:*(a::LaurentPolyWrap, x::QuantumGroupElem)
   return mul!(deepcopy(x), coefficient_ring(parent(x))(a))
 end
 
+function Base.:/(x::QuantumGroupElem, a)
+  return div!(deepcopy(x), a)
+end
+
+function Base.:(//)(x::QuantumGroupElem, a)
+  return div!(deepcopy(x), a)
+end
+
 function Base.:+(x::QuantumGroupElem, y::QuantumGroupElem)
   return add!(deepcopy(x), y)
 end
@@ -217,6 +260,14 @@ function leading_monomial(x::QuantumGroupElem)
   return QuantumGroupElem(parent(x), leading_monomial(x.elem))
 end
 
+function trailing_coefficient(x::QuantumGroupElem)
+  return trailing_coefficient(x.elem)
+end
+
+function Singular.trailing_exponent_vector(x::QuantumGroupElem)
+  return Singular.trailing_exponent_vector(x.elem)
+end
+
 ###############################################################################
 #
 #   Quantum Group constructor
@@ -224,6 +275,8 @@ end
 ###############################################################################
 
 function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
+  w0 = UInt8[3, 2, 1, 3, 2, 3, 1, 2, 1]
+
   A, q = laurent_polynomial_ring(ZZ, "q")
   QA = fraction_field(A)
   P, theta = polynomial_ring(QA, :F => 1:length(w0))
@@ -245,7 +298,7 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
   GAP.Globals.SetPositiveRoots(gapR, gapPos)
   GAP.Globals.SetNegativeRoots(gapR, -gapPos)
   GAP.Globals.SetSimpleSystem(gapR, gapSim)
-  GAP.Globals.SetCartanMatrix(gapR, GAP.Obj(cartan_matrix(R)))
+  GAP.Globals.SetCartanMatrix(gapR, GAP.Obj(transpose(cartan_matrix(R))))
   GAP.Globals.SetBilinearFormMat(gapR, gapBil)
   GAP.Globals.SetPositiveRootsNF(gapR, gapPos)
   GAP.Globals.SetSimpleSystemNF(gapR, gapSim)
@@ -253,6 +306,7 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
   GAP.Globals.SetTypeOfRootSystem(
     gapR, collect(Iterators.flatmap(t -> GAP.GapObj.(t), root_system_type(R)))
   )
+  GAP.Globals.SetLongestWeylWord(gapR, GAP.GapObj(GAP.GapObj.(w0)))
 
   gapU = GAP.Globals.QuantizedUEA(gapR)
   gapF = GAP.Globals.GeneratorsOfAlgebra(gapU)
@@ -262,15 +316,16 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
   rels = zero_matrix(P, npos, npos)
 
   term = one(P)
-  for i in 1:npos, j in (i + 1):npos
+  for i in 1:npos, j in (i+1):npos
     rep = Oscar.GAPWrap.ExtRepOfObj(gapF[j] * gapF[i])
     for n in 1:2:length(rep)
       for m in 1:2:length(rep[n])
-        for _ in 1:rep[n][m + 1]
+        for _ in 1:rep[n][m+1]
           term = mul!(term, theta[rep[n][m]])
         end
+        term = mul!(term, inv(quantum_factorial(rep[n][m+1], QA(q))))
       end
-      coeffRep = GAP.Globals.CoefficientsOfLaurentPolynomial(rep[n + 1])
+      coeffRep = GAP.Globals.CoefficientsOfLaurentPolynomial(rep[n+1])
       coeff = zero(QA)
       for n in 1:length(coeffRep[1])
         coeff = addmul!(coeff, QA(q)^(n + coeffRep[2] - 1), coeffRep[1][n])
@@ -280,13 +335,13 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
     end
   end
 
-  alg, F = pbw_algebra(P, rels, deglex(theta))
+  alg, F = pbw_algebra(P, rels, lex(theta))
   return QuantumGroup(
     A,
     alg,
     F,
     q,
-    [q for _ in 1:length(F)],
+    [QA(q)^div(r * gapBil * r, 2) for r in GAP.Globals.PositiveRootsInConvexOrder(gapR)],
     R,
     w0,
     Dict{Vector{Int},PBWAlgElem}(),
@@ -310,22 +365,23 @@ function bar_involution(U::QuantumGroup)
   nsim = number_of_simple_roots(R)
   npos = number_of_positive_roots(R)
 
-  gen = zeros(Int, npos)
+  # order of the positive roots in the convex order
+  cvx = zeros(Int, npos)
   for i in 1:npos
     beta = U.w0[i]
-    for j in (i - 1):-1:1
+    for j in (i-1):-1:1
       beta = refl[U.w0[j], beta]
     end
-    gen[beta] = i
+    cvx[beta] = i
   end
 
   img = zeros(U.alg, length(U.gens))
   for i in 1:nsim
-    img[gen[i]] = add!(img[gen[i]], U.gens[gen[i]])
+    img[cvx[i]] = add!(img[cvx[i]], U.gens[cvx[i]])
   end
 
   # we construct the images of the PBW generators inductively by height
-  for m in (nsim + 1):npos
+  for m in (nsim+1):npos
     n = 0
     s = 0
     # find positive root with smaller height
@@ -337,15 +393,21 @@ function bar_involution(U::QuantumGroup)
       end
     end
 
-    if gen[s] > gen[n]
-      s, n = n, s
+    pow = Int(height(positive_root(R, m)) - height(positive_root(R, n)))
+    if cvx[s] < cvx[n]
+      rel = U.gens[cvx[n]] * U.gens[cvx[s]]^pow
+      img[cvx[m]] = img[cvx[n]] * img[cvx[s]]^pow
+    else
+      rel = U.gens[cvx[s]]^pow * U.gens[cvx[n]]
+      img[cvx[m]] = img[cvx[s]]^pow * img[cvx[n]]
     end
 
     b = one(U.alg)
-    img[gen[m]] = add!(img[gen[m]], U.gens[gen[n]] * U.gens[gen[s]])
-    for term in Singular.terms(U.alg.relations[gen[s], gen[n]])
-      exp = Singular.leading_exponent_vector(term)
-      if exp[gen[m]] != 0
+    coeff = zero(coefficient_ring(U))
+    for term in terms(rel)
+      exp = leading_exponent_vector(term)
+      if exp[cvx[m]] != 0
+        coeff = inv(leading_coefficient(term))
         continue
       end
 
@@ -355,12 +417,10 @@ function bar_involution(U::QuantumGroup)
         end
       end
 
-      img[gen[m]] = submul!(
-        img[gen[m]], b,
-        evaluate(coefficient_ring(U.alg)(Singular.leading_coefficient(term)), U.q^-1),
-      )
+      img[cvx[m]] = submul!(img[cvx[m]], b, evaluate(leading_coefficient(term), U.q^-1))
       b = one!(b)
     end
+    img[cvx[m]] = mul!(img[cvx[m]], coeff)
   end
 
   return function (x::QuantumGroupElem)
@@ -390,35 +450,29 @@ end
 ###############################################################################
 
 function _canonical_basis_elem(U::QuantumGroup, b::Vector{Int})
-  datum = Int.(b)
   bar = bar_involution(U)
-  return get!(U.canonical_basis, datum) do
+  return get!(U.canonical_basis, b) do
     F = one(U)
-    for i in 1:length(datum)
-      for _ in 1:datum[i]
+    for i in 1:length(b)
+      for _ in 1:b[i]
         F = mul!(F, gen(U, i))
       end
-      mul!(F, inv(quantum_factorial(U, datum[i])))
+      mul!(F, inv(quantum_factorial(b[i], U.qi[i])))
     end
 
     G = F
     F = sub!(bar(F), F)
-    n = 0
     while !iszero(F)
-      lc = numerator(leading_coefficient(F))
-      c = coefficient_ring(U)(
-        parent(lc.poly)(
-          [zero(ZZ); (coeff(lc.poly, n) for n in (-lc.mindeg + 1):degree(lc.poly))...]
-        ),
-      )
+      elem = canonical_basis_elem(U, Singular.trailing_exponent_vector(F))
+      cf1 = numerator(div(trailing_coefficient(F), trailing_coefficient(elem)))
 
-      elem = canonical_basis_elem(U, leading_exponent_vector(F))
-      G = addmul!(G, elem, c)
-      F = submul!(F, elem, div(leading_coefficient(F), leading_coefficient(elem)))
-      n += 1
-      if n > 2
-        error("infinite loop")
-      end
+      # split the coefficient into positive and negative powers of q
+      # use postive powers for the canoncial basis element and discard the negative powers
+      # this corresponds to b and bar(b)
+      cf2 = coefficient_ring(U)(parent(cf1.poly)([coeff(cf1, n) for n in 0:degree(cf1.poly)]))
+
+      G = addmul!(G, elem, cf2)
+      F = submul!(F, elem, coefficient_ring(U)(cf1))
     end
 
     return G.elem
@@ -429,19 +483,18 @@ function canonical_basis_elem(U::QuantumGroup, b::Vector{Int})
   return QuantumGroupElem(U, _canonical_basis_elem(U, b))
 end
 
-function quantum_integer(U::QuantumGroup, n::Int)
-  field = coefficient_ring(U.alg)
-  z = zero(field)
-  for i in (-n + 1):2:(n - 1)
-    z = add!(z, field(U.q)^i)
+function quantum_integer(n::Int, q::RingElem)
+  z = zero(q)
+  for i in (-n+1):2:(n-1)
+    z = add!(z, q^i)
   end
   return z
 end
 
-function quantum_factorial(U::QuantumGroup, n::Int)
-  z = one(coefficient_ring(U.alg))
+function quantum_factorial(n::Int, q::RingElem)
+  z = one(q)
   for i in 1:n
-    z = mul!(z, quantum_integer(U, i))
+    z = mul!(z, quantum_integer(i, q))
   end
   return z
 end
