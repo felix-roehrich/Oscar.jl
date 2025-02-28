@@ -58,6 +58,7 @@ export matrix_repr_basis
 export parabolic_subgroup
 export parabolic_subgroup_with_projection
 export quantum_group
+export quantum_parameter
 export show_dynkin_diagram
 export simple_module
 export special_linear_lie_algebra
