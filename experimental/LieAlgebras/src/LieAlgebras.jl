@@ -110,6 +110,7 @@ include("Util.jl")
 
 include("CoxeterGroup.jl")
 include("DynkinDiagram.jl")
+include("LusztigDatum.jl")
 include("WeylGroup.jl")
 
 include("LieAlgebra.jl")
