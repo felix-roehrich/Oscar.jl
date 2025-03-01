@@ -1,8 +1,3 @@
-using AbstractAlgebra.Generic: LaurentPolyWrap
-import ..Oscar: add!, addmul!, div!, mul!, neg!, sub!, submul!, one
-import ..Oscar:
-  coefficient_ring, leading_coefficient, leading_exponent_vector, leading_monomial, trailing_coefficient
-
 function Nemo.exponent_vector!(
   z::Vector{Int}, a::AbstractAlgebra.Generic.MPoly{T}, i::Int
 ) where {T<:RingElement}
