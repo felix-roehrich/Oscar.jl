@@ -11,12 +11,12 @@ struct PBWAlgModule
   sdata::Singular.smodule
 end
 
-struct QuantumGroup
+struct QuantumGroup{T<:FieldElem} <: NCRing
   A::Any#::LaurentPolynomialRing
 
   alg::PBWAlgRing
   gens::Vector{PBWAlgElem}
-  q::Any #::RationalFunctionFieldElem{QQFieldElem,QQPolyRingElem}
+  q::T #::RationalFunctionFieldElem{QQFieldElem,QQPolyRingElem}
   qi::Vector # {RationalFunctionFieldElem{QQFieldElem,QQPolyRingElem}}
   root_system::RootSystem
   w0::Vector{UInt8}
@@ -83,6 +83,11 @@ mutable struct QuantumGroupElem
   elem::PBWAlgElem
 end
 
+function Base.show(io::IO, x::QuantumGroupElem)
+  show(io, x.elem)
+end
+
+#=
 function expressify(x::QuantumGroupElem; context=nothing)
   expr = Expr(:call, :+)
   for t in terms(x.elem)
@@ -98,6 +103,7 @@ function expressify(x::QuantumGroupElem; context=nothing)
   return expr
 end
 @enable_all_show_via_expressify QuantumGroupElem
+=#
 
 
 function Base.deepcopy_internal(x::QuantumGroupElem, dict::IdDict)
@@ -331,7 +337,7 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
   end
 
   alg, F = pbw_algebra(P, rels, lex(theta))
-  return QuantumGroup(
+  return QuantumGroup{T}(
     A,
     alg,
     F,
@@ -434,6 +440,7 @@ function bar_involution(U::QuantumGroup)
       t = one!(t)
     end
 
+    println(typeof(val))
     return QuantumGroupElem(U, val)
   end
 end
