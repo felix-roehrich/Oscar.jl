@@ -4,11 +4,11 @@ using ..Oscar
 import Base: deepcopy_internal
 
 using AbstractAlgebra.PrettyPrinting
-using AbstractAlgebra.Generic: LaurentPolyWrap
+using AbstractAlgebra.Generic: FracFieldElem, LaurentPolyWrap
 
 import ..Oscar: add!, addmul!, div!, mul!, neg!, sub!, submul!, one, one!, zero, zero!
 import ..Oscar:
-  coefficient_ring, gen, gens, leading_coefficient, leading_exponent_vector, leading_monomial, trailing_coefficient
+  coefficient_ring, gen, gens, leading_coefficient, leading_exponent_vector, leading_monomial, ngens, trailing_coefficient
   
   include("exports.jl")
   include("QuantumGroup.jl")

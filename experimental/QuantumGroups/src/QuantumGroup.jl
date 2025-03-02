@@ -6,18 +6,35 @@ function Nemo.exponent_vector!(
   return z
 end
 
+function Base.reverse!(z::ZZPolyRingElem, x::ZZPolyRingElem, len::Int)
+  len < 0 && throw(DomainError(len, "Index must be non-negative"))
+  @ccall Nemo.libflint.fmpz_poly_reverse(z::Ref{ZZPolyRingElem}, x::Ref{ZZPolyRingElem}, len::Int)::Nothing
+  return z
+end
+
+function bar!(z::LaurentPolyWrap, x::LaurentPolyWrap)
+  reverse!(z.poly, x.poly, length(x.poly))
+  z.mindeg = -degree(x.poly)-x.mindeg
+  return z
+end
+
+function bar!(z::FracFieldElem{T}, x::FracFieldElem{T}) where T <: LaurentPolyWrap
+  bar!(z.num, x.num)
+  bar!(z.den, x.den)
+  return z
+end
+
 struct PBWAlgModule
   alg::PBWAlgRing
   sdata::Singular.smodule
 end
 
-struct QuantumGroup{T<:FieldElem} <: NCRing
+struct QuantumGroup{T<:FieldElem, S} <: NCRing # S needed for Singular data
   A::Any#::LaurentPolynomialRing
 
-  alg::PBWAlgRing
-  gens::Vector{PBWAlgElem}
+  alg::PBWAlgRing{T, S}
   q::T #::RationalFunctionFieldElem{QQFieldElem,QQPolyRingElem}
-  qi::Vector # {RationalFunctionFieldElem{QQFieldElem,QQPolyRingElem}}
+  qi::Vector{T} # {RationalFunctionFieldElem{QQFieldElem,QQPolyRingElem}}
   root_system::RootSystem
   w0::Vector{UInt8}
 
@@ -57,12 +74,16 @@ function coefficient_ring(U::QuantumGroup)
   return coefficient_ring(U.alg)
 end
 
-function gen(U::QuantumGroup, i::Int)
-  return QuantumGroupElem(U, U.gens[i])
+function gen(U::QuantumGroup{T, S}, i::Int) where {T, S}
+  return QuantumGroupElem{T, S}(U, gen(U.alg, i))
 end
 
 function gens(U::QuantumGroup)
-  return [gen(U, i) for i in 1:length(U.gens)]
+  return [gen(U, i) for i in 1:ngens(U)]
+end
+
+function ngens(U::QuantumGroup)
+  return ngens(U.alg)
 end
 
 function quantum_parameter(U::QuantumGroup)
@@ -78,9 +99,9 @@ function quantum_parameter(U::QuantumGroup, i::Int)
   return U.qi[i]
 end
 
-mutable struct QuantumGroupElem
-  U::QuantumGroup
-  elem::PBWAlgElem
+mutable struct QuantumGroupElem{T<:FieldElem, S}
+  U::QuantumGroup{T, S}
+  elem::PBWAlgElem{T, S}
 end
 
 function Base.show(io::IO, x::QuantumGroupElem)
@@ -167,6 +188,7 @@ function div!(x::QuantumGroupElem, a)
 end
 
 function mul!(z::QuantumGroupElem, x::QuantumGroupElem, y::QuantumGroupElem)
+  @req parent(z) == parent(x) == parent(y) "parent mismatch"
   z.elem = mul!(z.elem, x.elem, y.elem)
   return z
 end
@@ -175,12 +197,12 @@ function mul!(x::QuantumGroupElem, y::QuantumGroupElem)
   return mul!(x, x, y)
 end
 
-function mul!(z::QuantumGroupElem, x::QuantumGroupElem, a)
+function mul!(z::QuantumGroupElem{T}, x::QuantumGroupElem{T}, a::T) where T
   z.elem = mul!(z.elem, x.elem, a)
   return z
 end
 
-function mul!(x::QuantumGroupElem, a)
+function mul!(x::QuantumGroupElem{T}, a::T) where T
   return mul!(x, x, a)
 end
 
@@ -215,8 +237,8 @@ function Base.:*(x::QuantumGroupElem, a)
   return mul!(deepcopy(x), a)
 end
 
-function Base.:*(a::LaurentPolyWrap, x::QuantumGroupElem)
-  return mul!(deepcopy(x), coefficient_ring(parent(x))(a))
+function Base.:*(a::T, x::QuantumGroupElem{T}) where T
+  return mul!(deepcopy(x), a)
 end
 
 function Base.:/(x::QuantumGroupElem, a)
@@ -336,12 +358,11 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
     end
   end
 
-  alg, F = pbw_algebra(P, rels, lex(theta))
-  return QuantumGroup{T}(
+  alg, _ = pbw_algebra(P, rels, lex(theta))
+  return QuantumGroup(
     A,
     alg,
-    F,
-    q,
+    QA(q),
     [QA(q)^div(r * gapBil * r, 2) for r in GAP.Globals.PositiveRootsInConvexOrder(gapR)],
     R,
     w0,
@@ -376,9 +397,9 @@ function bar_involution(U::QuantumGroup)
     cvx[beta] = i
   end
 
-  img = zeros(U.alg, length(U.gens))
+  img = zeros(U.alg, ngens(U.alg))
   for i in 1:nsim
-    img[cvx[i]] = add!(img[cvx[i]], U.gens[cvx[i]])
+    img[cvx[i]] = add!(img[cvx[i]], gen(U.alg, cvx[i]))
   end
 
   # we construct the images of the PBW generators inductively by height
@@ -396,14 +417,15 @@ function bar_involution(U::QuantumGroup)
 
     pow = Int(height(positive_root(R, m)) - height(positive_root(R, n)))
     if cvx[s] < cvx[n]
-      rel = U.gens[cvx[n]] * U.gens[cvx[s]]^pow
+      rel = gen(U.alg, cvx[n]) * gen(U.alg, cvx[s])^pow
       img[cvx[m]] = img[cvx[n]] * img[cvx[s]]^pow
     else
-      rel = U.gens[cvx[s]]^pow * U.gens[cvx[n]]
+      rel = gen(U.alg, cvx[s])^pow * gen(U.alg, cvx[n])
       img[cvx[m]] = img[cvx[s]]^pow * img[cvx[n]]
     end
 
     b = one(U.alg)
+    barred = zero(coefficient_ring(U))
     coeff = zero(coefficient_ring(U))
     for term in terms(rel)
       exp = leading_exponent_vector(term)
@@ -418,7 +440,8 @@ function bar_involution(U::QuantumGroup)
         end
       end
 
-      img[cvx[m]] = submul!(img[cvx[m]], b, evaluate(leading_coefficient(term), U.q^-1))
+      bar!(barred, leading_coefficient(term))
+      img[cvx[m]] = submul!(img[cvx[m]], b, barred)
       b = one!(b)
     end
     img[cvx[m]] = mul!(img[cvx[m]], coeff)
@@ -429,6 +452,7 @@ function bar_involution(U::QuantumGroup)
 
     val = zero(U.alg)
     t = one(U.alg)
+    barred = zero(coefficient_ring(U))
     for term in terms(x.elem)
       exp = leading_exponent_vector(term)
       for i in eachindex(exp)
@@ -436,11 +460,12 @@ function bar_involution(U::QuantumGroup)
           t = mul!(t, img[i])
         end
       end
-      val = addmul!(val, t, evaluate(leading_coefficient(term), U.q^-1))
+      
+      bar!(barred, leading_coefficient(term))
+      val = addmul!(val, t, barred)
       t = one!(t)
     end
 
-    println(typeof(val))
     return QuantumGroupElem(U, val)
   end
 end
