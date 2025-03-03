@@ -109,6 +109,13 @@ function mul!(z::PBWAlgebraElem{T}, x::PBWAlgebraElem{T}, y::PBWAlgebraElem{T}) 
   return z
 end
 
+function mul!(z::PBWAlgebraElem{T}, x::PBWAlgebraElem{T}, y::T) where {T<:FieldElem}
+  z.poly = mul!(z.poly, x.poly, y)
+  return z
+end
+
+###############################################################################
+
 function Base.:+(x::PBWAlgebraElem, y::PBWAlgebraElem)
   @req parent(x) == parent(y) "parent mismatch"
   return add!(zero(x), x, y)
@@ -119,11 +126,17 @@ function Base.:*(x::PBWAlgebraElem, y::PBWAlgebraElem)
   return mul!(zero(x), x, y)
 end
 
+function Base.:*(x::PBWAlgebraElem{T}, y::T) where {T<:FieldElem}
+  return mul!(zero(x), x, y)
+end
+
 function Base.:^(x::PBWAlgebraElem, n::Int)
   if n < 0
     throw(DomainError(n, "exponent must be >= 0"))
   elseif n == 0
     return one(x)
+  elseif length(x) == 1
+    return PBWAlgebraElem(parent(x), x.poly^n)
   end
 
   z1 = deepcopy(x)
@@ -160,6 +173,14 @@ end
 function zero!(x::PBWAlgebraElem)
   x.poly = zero!(x.poly)
   return x
+end
+
+function length(x::PBWAlgebraElem)
+  return length(x.poly)
+end
+
+function coeff(x::PBWAlgebraElem, i::Int)
+  return coeff(x.poly, i)
 end
 
 function leading_exponent_vector(x::PBWAlgebraElem)
