@@ -1,33 +1,9 @@
 const pbwAlg_multGrow = 5
 
-using Base: deepcopy_internal
-mutable struct PBWAlgElemData
-  poly::MPoly
-
-  exp::Vector{Int} # exponent vector of leading monomial
-  nzf::Int # index of first non-zero entry in exp
-  nzl::Int # index of last non-zero entry in exp
-end
-
-struct _pbw_multiplication_table
-  N::Int
-  T::Vector{Matrix{PBWAlgElemData}}
-end
-
-mutable struct _pbw_monomial
-  exp::Vector{Int}
-  nzf::Int
-  nzl::Int
-end
-
-function Base.getindex(mult::_pbw_multiplication_table, i::Int, j::Int)
-  return mult.T[(i-1)*mult.N+j-1]
-end
-
 struct PBWAlg{T<:FieldElem}
   R::MPolyRing{T}
-  rels::Vector{MPolyRingElem{T}}
-  mult::_pbw_multiplication_table
+  rels::Vector{MPoly{T}}
+  mult::Vector{Matrix{MPoly{T}}}
 
   function PBWAlg()
     A, q = laurent_polynomial_ring(ZZ, "q")
@@ -36,82 +12,19 @@ struct PBWAlg{T<:FieldElem}
 
     rels = [q^-1 * f[1] * f[2], q * f[1] * f[3] + f[2], q^-1 * f[2] * f[3]]
 
-    m1 = Array{PBWAlgElemData}(undef, pbwAlg_multGrow, pbwAlg_multGrow)
-    m1[1, 1] = PBWAlgElemData(rels[1], [1, 1, 0], 1, 2)
-    m2 = Array{PBWAlgElemData}(undef, pbwAlg_multGrow, pbwAlg_multGrow)
-    m2[1, 1] = PBWAlgElemData(rels[2], [1, 0, 1], 1, 3)
-    m3 = Array{PBWAlgElemData}(undef, pbwAlg_multGrow, pbwAlg_multGrow)
-    m3[1, 1] = PBWAlgElemData(rels[3], [0, 1, 1], 2, 3)
+    m1 = Array{MPoly}(undef, pbwAlg_multGrow, pbwAlg_multGrow)
+    m1[1, 1] = rels[1]
+    m2 = Array{MPoly}(undef, pbwAlg_multGrow, pbwAlg_multGrow)
+    m2[1, 1] = rels[2]
+    m3 = Array{MPoly}(undef, pbwAlg_multGrow, pbwAlg_multGrow)
+    m3[1, 1] = rels[3]
 
     return new{elem_type(QA)}(
       R,
       rels,
-      _pbw_multiplication_table(ngens(R), [m1, m2, m3])
+      [m1, m2, m3]
     )
   end
-end
-
-# i must be less than j
-function _offset(A::PBWAlg, i::Int, j::Int)
-  return (i - 1) * ngens(A) + j - 1
-end
-
-function one(x::PBWAlgElemData)
-  return PBWAlgElemData(one(x.poly), zeros(Int, length(x.exp)), 0, 0)
-end
-
-function one!(x::PBWAlgElemData)
-  x.poly = one!(x.poly)
-  x.exp = zero!(x.exp)
-  x.nzf = 0
-  x.nzl = 0
-  return x
-end
-
-function add!(x::PBWAlgElemData, y::PBWAlgElemData)
-  x.poly = add!(x.poly, y.poly)
-  if x.exp < y.exp
-    copy!(x.exp, y.exp)
-    x.nzf = y.nzf
-    x.nzl = y.nzl
-  end
-
-  return x
-end
-
-function mul!(x::PBWAlgElemData, y::PBWAlgElemData)
-  x.poly = mul!(x.poly, y.poly)
-  x.exp = add!(x.exp, y.exp)
-  x.nzf = min(x.nzf, y.nzf)
-  x.nzl = max(x.nzl, y.nzl)
-
-  return x
-end
-
-function zero(x::PBWAlgElemData)
-  return PBWAlgElemData(
-    zero(x.poly),
-    zeros(Int, length(x.exp)),
-    0,
-    0
-  )
-end
-
-function zero!(x::PBWAlgElemData)
-  x.poly = zero!(x.poly)
-  x.exp = zero!(x.exp)
-  x.nzf = 0
-  x.nzl = 0
-  return x
-end
-
-function leading_term(x::PBWAlgElemData)
-  return PBWAlgElemData(
-    leading_term(x.poly),
-    copy(x.exp),
-    x.nzf,
-    x.nzl
-  )
 end
 
 ###############################################################################
@@ -125,14 +38,12 @@ function Base.show(io::IO, A::PBWAlg)
   print(io, LowercaseOff(), "PBW algebra over ", Lowercase(), coefficient_ring(A))
 end
 
-function coefficient_ring(A::PBWAlg)
+function coefficient_ring(A::PBWAlg{T}) where {T}
   return coefficient_ring(A.R)
 end
 
 function gen(A::PBWAlg, i::Int)
-  exp = zeros(Int, ngens(A))
-  exp[i] = 1
-  return PBWAlgebraElem(A, PBWAlgElemData(gen(A.R, i), exp, i, i))
+  return PBWAlgebraElem(A, gen(A.R, i))
 end
 
 function gens(A::PBWAlg)
@@ -149,9 +60,9 @@ end
 #
 ###############################################################################
 
-struct PBWAlgebraElem
-  parent::PBWAlg
-  data::PBWAlgElemData
+mutable struct PBWAlgebraElem{T<:FieldElem}
+  parent::PBWAlg{T}
+  poly::MPoly{T}
 end
 
 function parent(x::PBWAlgebraElem)
@@ -159,72 +70,92 @@ function parent(x::PBWAlgebraElem)
 end
 
 function Base.show(io::IO, x::PBWAlgebraElem)
-  show(io, x.data.poly)
+  show(io, x.poly)
 end
 
 function Base.deepcopy_internal(x::PBWAlgebraElem, dict::IdDict)
-  return get!(dict, x, PBWAlgebraElem(parent(x), Base.deepcopy_internal(x.data, dict)))
+  return get!(dict, x, PBWAlgebraElem(parent(x), Base.deepcopy_internal(x.poly, dict)))
 end
 
 function Base.hash(x::PBWAlgebraElem, h::UInt)
   b = 0xa080ada44dcea378 % UInt
   h = hash(parent(x), h)
-  h = hash(x.data, h)
+  h = hash(x.poly, h)
 
   return xor(h, b)
-end
-
-function Base.:*(x::PBWAlgebraElem, y::PBWAlgebraElem)
-  return mul!(zero(x), x, y)
 end
 
 ###############################################################################
 
 function add!(z::PBWAlgebraElem, x::PBWAlgebraElem, y::PBWAlgebraElem)
-  @req parent(z) == parent(x) == parent(y) "parent mismatch"
-  z.data = add!(x.data, y.data)
+  z.poly = add!(z.poly, x.poly, y.poly)
   return z
 end
 
 function mul!(z::PBWAlgebraElem, x::PBWAlgebraElem, y::PBWAlgebraElem)
-  @req parent(z) == parent(x) == parent(y) "parent mismatch"
-  _mul_p_p!(parent(z), z.data, x.data, y.data)
+  _mul_p_p!(parent(z), z.poly, x.poly, y.poly)
   return z
+end
+
+function Base.:+(x::PBWAlgebraElem, y::PBWAlgebraElem)
+  @req parent(x) == parent(y) "parent mismatch"
+  return add!(zero(x), x, y)
+end
+
+function Base.:*(x::PBWAlgebraElem, y::PBWAlgebraElem)
+  @req parent(x) == parent(y) "parent mismatch"
+  return mul!(zero(x), x, y)
+end
+
+function Base.:^(x::PBWAlgebraElem, n::Int)
+  if n < 0
+    throw(DomainError(n, "exponent must be >= 0"))
+  elseif n == 0
+    return one(x)
+  end
+
+  z1 = deepcopy(x)
+  z2 = deepcopy(x)
+  for i in 1:n
+    if isodd(i)
+      mul!(z1, z2, x)
+    else
+      mul!(z2, z1, x)
+    end
+  end
+
+  return isodd(n) ? z2 : z1
 end
 
 ###############################################################################
 
 function is_one(x::PBWAlgebraElem)
-  return is_one(x.data.poly)
+  return is_one(x.poly)
 end
 
 function one(x::PBWAlgebraElem)
-  return PBWAlgebraElem(parent(x), one(x.data))
+  return PBWAlgebraElem(parent(x), one(x.poly))
 end
 
 function is_zero(x::PBWAlgebraElem)
-  return is_zero(x.data.poly)
+  return is_zero(x.poly)
 end
 
 function zero(x::PBWAlgebraElem)
-  return PBWAlgebraElem(parent(x), zero(x.data))
+  return PBWAlgebraElem(parent(x), zero(x.poly))
 end
 
 function zero!(x::PBWAlgebraElem)
-  x.data = zero!(x.data)
+  x.poly = zero!(x.poly)
   return x
 end
 
 function leading_exponent_vector(x::PBWAlgebraElem)
-  return x.data.exp
-end
-
-function tail(x::PBWAlgElemData)
-  return PBWAlgElemData(tail(x.poly), copy(x.exp), x.nzf, x.nzl)
+  return leading_exponent_vector(x.poly)
 end
 
 function tail(x::PBWAlgebraElem)
-  return PBWAlgebraElem(parent(x), tail(x.data))
+  return PBWAlgebraElem(parent(x), tail(x.poly))
 end
 
 ###############################################################################
@@ -262,158 +193,139 @@ function _multiplication(rels::Vector, C::ZZMatrix, D::ZZMatrix)
 end
 
 # multiply polynomials x and y and store the result in z
-function _mul_p_p!(A::PBWAlg, z::PBWAlgElemData, x::PBWAlgElemData, y::PBWAlgElemData)
+function _mul_p_p!(A::PBWAlg{T}, z::MPoly{T}, x::MPoly{T}, y::MPoly{T}) where {T<:FieldElem}
   z = zero!(z)
 
-  # temporary storage for monomials
-  mx = _pbw_monomial(zeros(Int, length(x.exp)), 0, 0)
-  my = _pbw_monomial(zeros(Int, length(y.exp)), 0, 0)
+  mx = zeros(Int, ngens(A))
+  my = zeros(Int, ngens(A))
   res = zero(z)
-  for py in terms(y.poly)
-    for px in terms(x.poly)
-      AbstractAlgebra.exponent_vector!(mx.exp, px, 1)
-      mx.nzf = findfirst(!is_zero, mx.exp)
-      mx.nzl = findlast(!is_zero, mx.exp)
-
-      AbstractAlgebra.exponent_vector!(my.exp, py, 1)
-      my.nzf = findfirst(!is_zero, my.exp)
-      my.nzl = findlast(!is_zero, my.exp)
+  for i in 1:length(x)
+    AbstractAlgebra.exponent_vector!(mx, x, i)
+    for j in 1:length(y)
+      AbstractAlgebra.exponent_vector!(my, y, j)
 
       _mul_m_m!(A, res, mx, my)
-      mul!(res.poly, coeff(px, 1))
-      mul!(res.poly, coeff(py, 1))
+      mul!(res, coeff(x, i))
+      mul!(res, coeff(y, j))
       add!(z, res)
     end
   end
 end
 
-function _mul_p_m!(A::PBWAlg, z::PBWAlgElemData, x::PBWAlgElemData, y::_pbw_monomial)
+function _mul_p_m!(A::PBWAlg, z::MPoly, x::MPoly, y::Vector{Int})
   z = zero!(z)
-  t = zero(z)
-  r = zero(z)
-  for poly in terms(x.poly)
-    t.poly = poly
-    t.exp = leading_exponent_vector(poly)
-    t.nzf = findfirst(!is_zero, t.exp)
-    t.nzl = findlast(!is_zero, t.exp)
-    z = add!(z, _mul_m_m!(A, r, t, y))
+  res = zero(z)
+  mx = zeros(Int, ngens(A))
+  for i in 1:length(x)
+    AbstractAlgebra.exponent_vector!(mx, x, i)
+    _mul_m_m!(A, res, mx, y)
+    addmul!(z, res, coeff(x, i))
   end
 end
 
-function _mul_m_p!(A::PBWAlg, z::PBWAlgElemData, x::_pbw_monomial, y::PBWAlgElemData)
+function _mul_m_p!(A::PBWAlg, z::MPoly, x::Vector{Int}, y::MPoly)
   z = zero!(z)
-  t = zero(z)
-  r = zero(z)
-  for poly in terms(y.poly)
-    t.poly = poly
-    t.exp = leading_exponent_vector(poly)
-    t.nzf = findfirst(!is_zero, t.exp)
-    t.nzl = findlast(!is_zero, t.exp)
-    z = add!(z, _mul_m_m!(A, r, x, t))
+  res = zero(z)
+  my = zeros(Int, ngens(A))
+  for i in 1:length(y)
+    AbstractAlgebra.exponent_vector!(my, y, i)
+    _mul_m_m!(A, res, x, my)
+    addmul!(z, res, coeff(y, i))
   end
 end
 
 # multiply monomials x and z and store result in z
-function _mul_m_m!(A::PBWAlg, z::PBWAlgElemData, x::_pbw_monomial, y::_pbw_monomial)
-  # monomials are ordered
-  if x.nzl <= y.nzf
-    z.poly = one!(z.poly)
-    z.exp = add!(z.exp, x.exp, y.exp)
-    AbstractAlgebra.set_exponent_vector!(z.poly, 1, z.exp)
-    z.nzf = x.nzf
-    z.nzl = y.nzl
+function _mul_m_m!(A::PBWAlg, z::MPoly, x::Vector{Int}, y::Vector{Int})
+  xl = findlast(!iszero, x)
+  if isnothing(xl)
+    return zero!(z)
+  end
 
+  yf = findfirst(!iszero, y)
+  if isnothing(yf)
+    return zero!(z)
+  end
+
+  # monomials are ordered, no need for exchange relations
+  if xl <= yf
+    one!(z)
+    AbstractAlgebra.add_exponent_vector!(z, 1, x)
+    AbstractAlgebra.add_exponent_vector!(z, 1, y)
     return z
   end
 
-  # temporary storage for monomials
-  mon = _pbw_monomial(copy(y.exp), y.nzf, y.nzl)
+  tmp = zero(z)
+  mon = zeros(Int, ngens(A))
 
-  # factors where we need to apply exchange relations
-  r2 = zero(z)
-  r3 = zero(z)
-  for i in x.nzl:-1:y.nzf
-    if is_zero(x.exp[i])
-      continue
-    end
+  # apply exchange relation
+  _mul_gens(A, z, xl, x[xl], yf, y[yf])
+  xl = findprev(!iszero, x, xl - 1)
+  yf = findnext(!iszero, y, yf + 1)
 
-    zero!(mon.exp[1:y.nzf-1])
-    copy!(mon.exp[y.nzf:end], y.exp[y.nzf:end])
-    for j in y.nzf:i-1
-      if is_zero(y.exp[j])
-        continue
-      end
-      mon.exp[j] = 0
-      mon.nzf = j + 1
-
-      # apply exchange relation
-      _mul_gens(A, r2, i, x.exp[i], j, y.exp[j])
-      for d in 1:length(r2.poly)
-        AbstractAlgebra.add_exponent_vector!(r2.poly, d, mon.exp)
-      end
-      add!(r3.poly, r2.poly)
-      r3.exp, r3.nzf, r3.nzl = r2.exp, r2.nzf, r2.nzl
-
-      l = tail(r2)
-      if !is_zero(l.poly)
-        _mul_p_m!(A, r2, l, mon)
-        add!(r3, r2)
-      end
-    end
-
-    # first nonzero entry of LM(r1) is i
-    copy!(mon.exp[1:i-1], x.exp[1:i-1])
-    zero!(mon.exp[i:end])
-    for d in 1:length(r3.poly)
-      AbstractAlgebra.add_exponent_vector!(r3.poly, d, mon.exp)
-    end
-
-    add!(z, r3)
+  if !isnothing(yf)
+    copyto!(mon, yf, y, yf, length(y) - yf + 1)
+    _mul_p_m!(A, tmp, z, mon)
+  else
+    AbstractAlgebra.swap!(tmp, z)
+  end
+  if !isnothing(xl)
+    zero!(mon)
+    copyto!(mon, 1, x, 1, xl)
+    _mul_m_p!(A, z, mon, tmp)
+  else
+    AbstractAlgebra.swap!(z, tmp)
   end
 end
 
 # i > j
-function _mul_gens(A::PBWAlg, z::PBWAlgElemData, i::Int, n::Int, j::Int, m::Int)
+function _mul_gens(A::PBWAlg{T}, z::MPoly, i::Int, n::Int, j::Int, m::Int) where {T<:FieldElem}
+  ind = (j - 1) * (ngens(A) - j) + i - 1
+
   # quasi-commutative case
-  if length(A.rels[_offset(A, j, i)]) == 1
-    z = one!(z)
-    mul!(z.poly, A.mult[j, i][1, 1].poly)
-    copy!(z.exp, A.mult[j, i][1, 1].exp)
-    z.nzf, z.nzl = A.mult[j, i][1, 1].nzf, A.mult[j, i][1, 1].nzl
+  if length(A.rels[ind]) == 1
+    one!(z)
+
+    AbstractAlgebra.add_exponent!(z, 1, i, n)
+    AbstractAlgebra.add_exponent!(z, 1, j, m)
+    cf = coeff(A.mult[ind][1, 1], 1)
+    if !is_one(cf)
+      pow!(coeff(z, 1), cf, n * m)
+    end
     return
   end
 
   # current and required multiplication table size
-  curSize = size(A.mult[j, i], 1)
+  curSize = size(A.mult[ind], 1)
   reqSize = max(n, m)
 
   z = zero!(z)
   if (curSize >= reqSize)
-    if !ismissing(A.mult[j, i][m, n])
-      return add!(z, A.mult[j, i][m, n])
+    if isassigned(A.mult[ind], n, m)
+      return add!(z, A.mult[ind][n, m])
     end
   else
     newSize = reqSize + pbwAlg_multGrow
-    mult = Matrix{MPoly}(undef, newSize, newSize)
-    copyto!(mult, A.mult[j, i])
-    A.mult = mult
+    mult = Matrix{MPoly{T}}(undef, newSize, newSize)
+    copyto!(mult, A.mult[ind])
+    A.mult[ind] = mult
   end
 
-  mon = _pbw_monomial(zeros(Int, length(z.exp)), i, i)
-  mon.exp[i] = 1
+  mon = zeros(Int, ngens(A))
+  mon[i] = 1
   for k in 2:n
-    if ismissing(A.mult[j, i][k, 1])
-      _mul_p_m!(A, A.mult[j, i][k, 1], A.mult[j, i][k-1, 1], mon)
+    if !isassigned(A.mult[ind], k, 1)
+      A.mult[ind][k, 1] = zero(A.R)
+      _mul_m_p!(A, A.mult[ind][k, 1], mon, A.mult[ind][k-1, 1])
     end
   end
 
-  mon.exp[i], mon.exp[j] = 0, 1
-  mon.nzf, mon.nzl = j, j
+  mon[i], mon[j] = 0, 1
   for k in 2:m
-    if ismissing(A.mult[j, i][n, k])
-      _mul_m_p!(A, A.mult[j, i][n, k], mon, A.mult[j, i][n, k-1])
+    if !isassigned(A.mult[ind], n, k)
+      A.mult[ind][n, k] = zero(A.R)
+      _mul_p_m!(A, A.mult[ind][n, k], A.mult[ind][n, k-1], mon)
     end
   end
 
-  return add!(z, A.mult[j, i][m, n])
+  add!(z, A.mult[ind][n, m])
 end

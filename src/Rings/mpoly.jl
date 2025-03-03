@@ -1224,6 +1224,10 @@ Return the tail of `f` with respect to the order `ordering`.
 """
 function tail(f::MPolyRingElem; ordering::MonomialOrdering = default_ordering(parent(f)))
   # f - leading_term(f) is too easy and might have problems with inexact
+  if is_zero(f)
+    return parent(f)()
+  end
+  
   i = index_of_leading_term(f, ordering)
   return _delete_index(f, i)
 end
