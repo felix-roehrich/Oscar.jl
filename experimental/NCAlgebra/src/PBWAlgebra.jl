@@ -27,6 +27,19 @@ struct PBWAlg{T<:FieldElem}
   end
 end
 
+mutable struct PBWAlgebraElem{T<:FieldElem}
+  parent::PBWAlg{T}
+  poly::MPoly{T}
+end
+
+function elem_type(::Type{PBWAlg{T}}) where {T}
+  return PBWAlgebraElem{T}
+end
+
+function parent_type(::Type{PBWAlgebraElem{T}}) where {T}
+  return PBWAlgebraElem{T}
+end
+
 ###############################################################################
 #
 #   PBWAlgebra
@@ -54,16 +67,15 @@ function ngens(A::PBWAlg)
   return ngens(A.R)
 end
 
+function zero(A::PBWAlg)
+  return PBWAlgebraElem(A, zero(A.R))
+end
+
 ###############################################################################
 #
 #   PBWAlgebraElem
 #
 ###############################################################################
-
-mutable struct PBWAlgebraElem{T<:FieldElem}
-  parent::PBWAlg{T}
-  poly::MPoly{T}
-end
 
 function parent(x::PBWAlgebraElem)
   return x.parent
@@ -92,7 +104,7 @@ function add!(z::PBWAlgebraElem, x::PBWAlgebraElem, y::PBWAlgebraElem)
   return z
 end
 
-function mul!(z::PBWAlgebraElem, x::PBWAlgebraElem, y::PBWAlgebraElem)
+function mul!(z::PBWAlgebraElem{T}, x::PBWAlgebraElem{T}, y::PBWAlgebraElem{T}) where {T<:FieldElem}
   _mul_p_p!(parent(z), z.poly, x.poly, y.poly)
   return z
 end
@@ -195,47 +207,47 @@ end
 # multiply polynomials x and y and store the result in z
 function _mul_p_p!(A::PBWAlg{T}, z::MPoly{T}, x::MPoly{T}, y::MPoly{T}) where {T<:FieldElem}
   z = zero!(z)
-
-  mx = zeros(Int, ngens(A))
-  my = zeros(Int, ngens(A))
   res = zero(z)
   for i in 1:length(x)
-    AbstractAlgebra.exponent_vector!(mx, x, i)
     for j in 1:length(y)
-      AbstractAlgebra.exponent_vector!(my, y, j)
-
-      _mul_m_m!(A, res, mx, my)
-      mul!(res, coeff(x, i))
-      mul!(res, coeff(y, j))
+      _mul_m_m!(A, res, exponent_vector(x, i, Val(:lex)), exponent_vector(y, j, Val(:lex)))
+      if !is_one(coeff(x, i))
+        mul!(res, coeff(x, i))
+      end
+      if !is_one(coeff(y, j))
+        mul!(res, coeff(y, j))
+      end
       add!(z, res)
     end
   end
 end
 
-function _mul_p_m!(A::PBWAlg, z::MPoly, x::MPoly, y::Vector{Int})
+function _mul_p_m!(A::PBWAlg{T}, z::MPoly{T}, x::MPoly{T}, y::AbstractVector{Int}) where {T<:FieldElem}
   z = zero!(z)
   res = zero(z)
-  mx = zeros(Int, ngens(A))
   for i in 1:length(x)
-    AbstractAlgebra.exponent_vector!(mx, x, i)
-    _mul_m_m!(A, res, mx, y)
-    addmul!(z, res, coeff(x, i))
+    _mul_m_m!(A, res, exponent_vector(x, i, Val{:lex}), y)
+    if !is_one(coeff(x, i))
+      mul!(res, coeff(x, i))
+    end
+    add!(z, res)
   end
 end
 
-function _mul_m_p!(A::PBWAlg, z::MPoly, x::Vector{Int}, y::MPoly)
+function _mul_m_p!(A::PBWAlg, z::MPoly, x::AbstractVector{Int}, y::MPoly)
   z = zero!(z)
   res = zero(z)
-  my = zeros(Int, ngens(A))
   for i in 1:length(y)
-    AbstractAlgebra.exponent_vector!(my, y, i)
-    _mul_m_m!(A, res, x, my)
-    addmul!(z, res, coeff(y, i))
+    _mul_m_m!(A, res, x, exponent_vector(y, i, Val(:lex)))
+    if !is_one(coeff(x, i))
+      mul!(res, coeff(y, i))
+    end
+    add!(z, res)
   end
 end
 
 # multiply monomials x and z and store result in z
-function _mul_m_m!(A::PBWAlg, z::MPoly, x::Vector{Int}, y::Vector{Int})
+function _mul_m_m!(A::PBWAlg, z::MPoly, x::AbstractVector{Int}, y::AbstractVector{Int})
   xl = findlast(!iszero, x)
   if isnothing(xl)
     return zero!(z)
@@ -249,13 +261,13 @@ function _mul_m_m!(A::PBWAlg, z::MPoly, x::Vector{Int}, y::Vector{Int})
   # monomials are ordered, no need for exchange relations
   if xl <= yf
     one!(z)
-    AbstractAlgebra.add_exponent_vector!(z, 1, x)
-    AbstractAlgebra.add_exponent_vector!(z, 1, y)
+    z.exps[:, 1] += x
+    z.exps[:, 1] += y
     return z
   end
 
   tmp = zero(z)
-  mon = zeros(Int, ngens(A))
+  mon = zeros(Int, ngens(A) + 1)
 
   # apply exchange relation
   _mul_gens(A, z, xl, x[xl], yf, y[yf])
@@ -284,9 +296,8 @@ function _mul_gens(A::PBWAlg{T}, z::MPoly, i::Int, n::Int, j::Int, m::Int) where
   # quasi-commutative case
   if length(A.rels[ind]) == 1
     one!(z)
-
-    AbstractAlgebra.add_exponent!(z, 1, i, n)
-    AbstractAlgebra.add_exponent!(z, 1, j, m)
+    AbstractAlgebra.add_exponent!(z, 1, i, n, Val(:lex))
+    AbstractAlgebra.add_exponent!(z, 1, j, m, Val(:lex))
     cf = coeff(A.mult[ind][1, 1], 1)
     if !is_one(cf)
       pow!(coeff(z, 1), cf, n * m)
@@ -310,7 +321,7 @@ function _mul_gens(A::PBWAlg{T}, z::MPoly, i::Int, n::Int, j::Int, m::Int) where
     A.mult[ind] = mult
   end
 
-  mon = zeros(Int, ngens(A))
+  mon = zeros(Int, ngens(A) + 1)
   mon[i] = 1
   for k in 2:n
     if !isassigned(A.mult[ind], k, 1)
