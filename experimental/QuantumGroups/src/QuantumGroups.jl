@@ -12,8 +12,11 @@ import ..Oscar:
 
 include("exports.jl")
 include("Types.jl")
-include("QuantumGroup.jl")
+
 include("CanonicalBasis.jl")
+include("Homomorphism.jl")
+include("QuantumGroup.jl")
+
 end
 
 using .QuantumGroups
