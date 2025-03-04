@@ -1,0 +1,21 @@
+struct QuantumGroup{T<:FieldElem,S} <: NCRing # S needed for Singular data
+  A::Any#::LaurentPolynomialRing
+
+  alg::PBWAlgRing{T,S}
+  q::T #::RationalFunctionFieldElem{QQFieldElem,QQPolyRingElem}
+  qi::Vector{T} # {RationalFunctionFieldElem{QQFieldElem,QQPolyRingElem}}
+  root_system::RootSystem
+  w0::Vector{UInt8}
+
+  # cache
+  canonical_basis::Dict{Vector{Int},PBWAlgElem}
+end
+
+mutable struct QuantumGroupElem{T<:FieldElem,S}
+  U::QuantumGroup{T,S}
+  elem::PBWAlgElem{T,S}
+end
+
+struct QuantumGroupHomomorphism
+  dom
+end
