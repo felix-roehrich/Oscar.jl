@@ -12,17 +12,37 @@ struct LusztigDatum
   end
 end
 
-function show(io::IO, d::LusztigDatum)
-  datum = d.datum
-  if d._w0 != d.w0
-    print(io, "datum: ")
-    print(io, d.datum)
-    print(io, ", w0: ")
-    print(io, d.w0)
-  else
-    print(io, "datum: ")
-    print(io, d.datum)
-  end
+function Base.deepcopy_internal(d::LusztigDatum, id::IdDict)
+  return get!(id, d, LusztigDatum(d.root_system, deepcopy_internal(d.datum, id), deepcopy_internal(d.w0, id)))
+end
+
+function Base.hash(d::LusztigDatum, h::UInt)
+  b = 0xbf09cbc877180763 % UInt
+  h = hash(d.datum, h)
+  h = hash(root_system(d), h)
+  h = hash(d.w0, h)
+
+  return xor(h, b)
+end
+
+function lusztig_datum(R::RootSystem, w0::Vector{UInt8})
+  return lusztig_datum(R, zeros(Int, number_of_positive_roots(R)), w0)
+end
+
+function lusztig_datum(R::RootSystem, datum::Vector{Int}, w0::Vector{UInt8})
+  @req number_of_positive_roots(R) == length(datum) == length(w0) "length does not match number of positive roots"
+  @req weyl_group(R)(w0) == longest_element(weyl_group(R)) "w0 not a reduced decomposition"
+  return LusztigDatum(R, datum, w0)
+end
+
+function Base.show(io::IO, d::LusztigDatum)
+  _state!(d, d.w0)
+  print(io, "Lusztig datum (")
+  join(io, d.datum, ", ")
+  print(io, ") for w0 = (")
+  join(io, Iterators.map(Int, d.w0), ", ")
+  print(io, ")")
+end
 
 function root_system(datum::LusztigDatum)
   return datum.root_system
