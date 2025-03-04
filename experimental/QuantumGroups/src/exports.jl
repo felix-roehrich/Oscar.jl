@@ -6,4 +6,5 @@ export quantum_group
 export quantum_binomial
 export quantum_factorial
 export quantum_parameter
+export star_involution
 export string_representation

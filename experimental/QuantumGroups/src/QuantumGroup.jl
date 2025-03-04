@@ -18,24 +18,6 @@ function bar!(z::FracFieldElem{T}, x::FracFieldElem{T}) where {T<:LaurentPolyWra
   return z
 end
 
-struct PBWAlgModule
-  alg::PBWAlgRing
-  sdata::Singular.smodule
-end
-
-struct QuantumGroup{T<:FieldElem,S} <: NCRing # S needed for Singular data
-  A::Any#::LaurentPolynomialRing
-
-  alg::PBWAlgRing{T,S}
-  q::T #::RationalFunctionFieldElem{QQFieldElem,QQPolyRingElem}
-  qi::Vector{T} # {RationalFunctionFieldElem{QQFieldElem,QQPolyRingElem}}
-  root_system::RootSystem
-  w0::Vector{UInt8}
-
-  # cache
-  canonical_basis::Dict{Vector{Int},PBWAlgElem}
-end
-
 function Base.show(io::IO, U::QuantumGroup)
   #@show_name(io, W)
   #@show_special(io, W)
@@ -93,11 +75,6 @@ function quantum_parameter(U::QuantumGroup, i::Int)
   return U.qi[i]
 end
 
-mutable struct QuantumGroupElem{T<:FieldElem,S}
-  U::QuantumGroup{T,S}
-  elem::PBWAlgElem{T,S}
-end
-
 #function Base.show(io::IO, x::QuantumGroupElem)
 #  show(io, x.elem)
 #end
@@ -110,7 +87,7 @@ function expressify(x::QuantumGroupElem; context=nothing)
     for i in 1:length(exp)
       coeff = mul!(coeff, quantum_factorial(exp[i], parent(x).qi[i]))
     end
-    push!(expr.args, Expr(:call, :*, expressify(coeff),
+    push!(expr.args, Expr(:call, :*, expressify(coeff; context),
       (string("F[$i]", exp[i] > 1 ? "^($(exp[i]))" : "") for i in 1:length(exp) if exp[i] > 0)...
     ))
   end
@@ -165,22 +142,21 @@ function add!(x::QuantumGroupElem, y::QuantumGroupElem)
   return add!(x, x, y)
 end
 
-function addmul!(z::QuantumGroupElem, x::QuantumGroupElem, a)
+function addmul!(z::QuantumGroupElem{T}, x::QuantumGroupElem{T}, a::T) where {T}
   z.elem = addmul!(z.elem, x.elem, a)
   return z
 end
 
-function div!(z::QuantumGroupElem, x::QuantumGroupElem, a)
+function div!(z::QuantumGroupElem{T}, x::QuantumGroupElem{T}, a::T) where {T}
   z.elem = mul!(z.elem, x.elem, inv(a)) # TODO: use div!, when possible
   return z
 end
 
-function div!(x::QuantumGroupElem, a)
+function div!(x::QuantumGroupElem{T}, a::T) where {T}
   return div!(x, x, a)
 end
 
 function mul!(z::QuantumGroupElem, x::QuantumGroupElem, y::QuantumGroupElem)
-  @req parent(z) == parent(x) == parent(y) "parent mismatch"
   z.elem = mul!(z.elem, x.elem, y.elem)
   return z
 end
@@ -216,16 +192,19 @@ function sub!(x::QuantumGroupElem, y::QuantumGroupElem)
   return sub!(x, x, y)
 end
 
-function submul!(z::QuantumGroupElem, x::QuantumGroupElem, a)
+function submul!(z::QuantumGroupElem{T}, x::QuantumGroupElem{T}, a::T) where {T}
   z.elem = submul!(z.elem, x.elem, a)
   return z
 end
 
+###############################################################################
+
 function Base.:*(x::QuantumGroupElem, y::QuantumGroupElem)
+  @req parent(x) == parent(y) "parent mismatch"
   return mul!(deepcopy(x), y)
 end
 
-function Base.:*(x::QuantumGroupElem, a)
+function Base.:*(x::QuantumGroupElem{T}, a::T) where {T}
   return mul!(deepcopy(x), a)
 end
 
@@ -233,11 +212,11 @@ function Base.:*(a::T, x::QuantumGroupElem{T}) where {T}
   return mul!(deepcopy(x), a)
 end
 
-function Base.:/(x::QuantumGroupElem, a)
+function Base.:/(x::QuantumGroupElem, a::T) where {T}
   return div!(deepcopy(x), a)
 end
 
-function Base.:(//)(x::QuantumGroupElem, a)
+function Base.:(//)(x::QuantumGroupElem, a::T) where {T}
   return div!(deepcopy(x), a)
 end
 
@@ -262,6 +241,15 @@ function Base.:(==)(x::QuantumGroupElem, y::QuantumGroupElem)
 end
 
 ###############################################################################
+
+function coeff(x::QuantumGroupElem, i::Int)
+  return coeff(x.elem, i)
+end
+
+function set_coeff!(x::QuantumGroupElem{T}, i::Int, a::T) where {T}
+  set_coeff!(x.elem, i, a)
+  return x
+end
 
 function leading_coefficient(x::QuantumGroupElem)
   return leading_coefficient(x.elem)
@@ -366,102 +354,6 @@ function _terms(x::QuantumGroupElem)
   return terms(x.elem)
 end
 
-###############################################################################
-#
-#   Standard automorphisms
-#
-###############################################################################
-
-function bar_involution(U::QuantumGroup)
-  R = root_system(U)
-  refl = weyl_group(R).refl
-
-  nsim = number_of_simple_roots(R)
-  npos = number_of_positive_roots(R)
-
-  # order of the positive roots in the convex order
-  cvx = zeros(Int, npos)
-  for i in 1:npos
-    beta = U.w0[i]
-    for j in (i-1):-1:1
-      beta = refl[U.w0[j], beta]
-    end
-    cvx[beta] = i
-  end
-
-  img = zeros(U.alg, ngens(U.alg))
-  for i in 1:nsim
-    img[cvx[i]] = add!(img[cvx[i]], gen(U.alg, cvx[i]))
-  end
-
-  # we construct the images of the PBW generators inductively by height
-  for m in (nsim+1):npos
-    n = 0
-    s = 0
-    # find positive root with smaller height
-    for i in 1:nsim
-      n = Int(refl[i, m])
-      if n < m
-        s = i
-        break
-      end
-    end
-
-    pow = Int(height(positive_root(R, m)) - height(positive_root(R, n)))
-    if cvx[s] < cvx[n]
-      rel = gen(U.alg, cvx[n]) * gen(U.alg, cvx[s])^pow
-      img[cvx[m]] = img[cvx[n]] * img[cvx[s]]^pow
-    else
-      rel = gen(U.alg, cvx[s])^pow * gen(U.alg, cvx[n])
-      img[cvx[m]] = img[cvx[s]]^pow * img[cvx[n]]
-    end
-
-    b = one(U.alg)
-    barred = zero(coefficient_ring(U))
-    coeff = zero(coefficient_ring(U))
-    for term in terms(rel)
-      exp = leading_exponent_vector(term)
-      if exp[cvx[m]] != 0
-        coeff = inv(leading_coefficient(term))
-        continue
-      end
-
-      for n in eachindex(exp)
-        for _ in 1:exp[n]
-          b = mul!(b, img[n])
-        end
-      end
-
-      bar!(barred, leading_coefficient(term))
-      img[cvx[m]] = submul!(img[cvx[m]], b, barred)
-      b = one!(b)
-    end
-    img[cvx[m]] = mul!(img[cvx[m]], coeff)
-  end
-
-  return function (x::QuantumGroupElem)
-    @req parent(x) == U "parent mismatch"
-
-    val = zero(U.alg)
-    t = one(U.alg)
-    barred = zero(coefficient_ring(U))
-    for term in terms(x.elem)
-      exp = leading_exponent_vector(term)
-      for i in eachindex(exp)
-        for _ in 1:exp[i]
-          t = mul!(t, img[i])
-        end
-      end
-
-      bar!(barred, leading_coefficient(term))
-      val = addmul!(val, t, barred)
-      t = one!(t)
-    end
-
-    return QuantumGroupElem(U, val)
-  end
-end
-
 function quantum_integer(n::Int, q::RingElem)
   z = zero(q)
   for i in (-n+1):2:(n-1)
@@ -520,7 +412,7 @@ function string_representation(x::QuantumGroupElem{T}) where {T}
   while !iszero(y)
     t = Singular.trailing_term(y)
     exp = leading_exponent_vector(t)
-    s = adapted_string(LusztigDatum(root_system(U), exp, U.w0))
+    s = adapted_string(lusztig_datum(root_system(U), exp, U.w0))
 
     f = one(t)
     for i in 1:length(U.w0)

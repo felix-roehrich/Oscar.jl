@@ -8,9 +8,10 @@ using AbstractAlgebra.Generic: FracFieldElem, LaurentPolyWrap
 
 import ..Oscar: add!, addmul!, div!, isone, iszero, mul!, neg!, one, one!, sub!, submul!, zero, zero!
 import ..Oscar:
-  coefficient_ring, expressify, gen, gens, leading_coefficient, leading_exponent_vector, leading_monomial, ngens, parent, trailing_coefficient
+  coeff, coefficient_ring, expressify, gen, gens, leading_coefficient, leading_exponent_vector, leading_monomial, ngens, parent, set_coeff!, trailing_coefficient
 
 include("exports.jl")
+include("Types.jl")
 include("QuantumGroup.jl")
 include("CanonicalBasis.jl")
 end

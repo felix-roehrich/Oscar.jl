@@ -6,14 +6,10 @@ struct LusztigDatum <: AbstractCrystalElem
 
   # w0 used for display purposes
   w0::Vector{UInt8}
-
-  function LusztigDatum(R::RootSystem, datum::Vector{Int}, w0::Vector{UInt8})
-    return new(datum, copy(w0), R, w0)
-  end
 end
 
 function Base.deepcopy_internal(d::LusztigDatum, id::IdDict)
-  return get!(id, d, LusztigDatum(d.root_system, deepcopy_internal(d.datum, id), deepcopy_internal(d.w0, id)))
+  return get!(id, d, LusztigDatum(deepcopy_internal(d.datum, id), deepcopy_internal(d._w0, id), d.root_system, deepcopy_internal(d.w0, id)))
 end
 
 function Base.hash(d::LusztigDatum, h::UInt)
@@ -32,7 +28,7 @@ end
 function lusztig_datum(R::RootSystem, datum::Vector{Int}, w0::Vector{UInt8})
   @req number_of_positive_roots(R) == length(datum) == length(w0) "length does not match number of positive roots"
   @req weyl_group(R)(w0) == longest_element(weyl_group(R)) "w0 not a reduced decomposition"
-  return LusztigDatum(R, datum, w0)
+  return LusztigDatum(datum, copy(w0), R, w0)
 end
 
 function Base.show(io::IO, d::LusztigDatum)
@@ -62,15 +58,15 @@ function adapted_string(d::LusztigDatum)
   wn = copy(d._w0)
   wo = copy(d._w0)
   datum = copy(d.datum)
-  for i in length(s):-1:1
-    exchange!(weyl_group(d), wn, d.w0[i])
+  for i in 1:length(s)
+    exchange!(weyl_group(d), d.w0[i], wn)
     for mv in braid_moves(weyl_group(d), wn, wo)
       _move!(datum, mv)
     end
     copyto!(wo, wn)
 
-    s[i] = datum[end]
-    datum[end] = 0
+    s[i] = datum[1]
+    datum[1] = 0
   end
 
   return s
@@ -93,7 +89,7 @@ function Crystal.f!(d::LusztigDatum, i::Int)
 end
 
 function _state!(d::LusztigDatum, i::UInt8)
-  if d.w0[end] == i
+  if d._w0[end] == i
     return
   end
 
