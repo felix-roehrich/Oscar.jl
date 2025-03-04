@@ -98,11 +98,12 @@ mutable struct QuantumGroupElem{T<:FieldElem,S}
   elem::PBWAlgElem{T,S}
 end
 
+#=
 function Base.show(io::IO, x::QuantumGroupElem)
   show(io, x.elem)
 end
+=#
 
-#=
 function expressify(x::QuantumGroupElem; context=nothing)
   expr = Expr(:call, :+)
   for t in terms(x.elem)
@@ -118,7 +119,6 @@ function expressify(x::QuantumGroupElem; context=nothing)
   return expr
 end
 @enable_all_show_via_expressify QuantumGroupElem
-=#
 
 
 function Base.deepcopy_internal(x::QuantumGroupElem, dict::IdDict)

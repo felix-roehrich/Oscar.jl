@@ -19,7 +19,7 @@ function _canonical_basis_elem(U::QuantumGroup, b::Vector{Int})
     G = F
     F = sub!(bar(F), F)
     while !iszero(F)
-      elem = canonical_basis_elem(U, Singular.trailing_exponent_vector(F))
+      elem = canonical_basis_elem(U, Singular.trailing_exponent_vector(F.elem))
       cf1 = numerator(div(trailing_coefficient(F), trailing_coefficient(elem)))
 
       # split the coefficient into positive and negative powers of q
