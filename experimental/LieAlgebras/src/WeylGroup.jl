@@ -10,7 +10,7 @@ function exchange!(W::WeylGroup, i::UInt8, w::AbstractVector{UInt8})
   root = i
   for s in 1:length(w)
     if w[s] == root
-      w[2:s] = w[1:(s - 1)]
+      w[2:s] = w[1:(s-1)]
       w[1] = i
       return true
     end
@@ -32,7 +32,7 @@ function exchange!(W::WeylGroup, w::AbstractVector{UInt8}, i::UInt8)
   root = i
   for s in length(w):-1:1
     if w[s] == root
-      w[s:(end - 1)] = w[(s + 1):end]
+      w[s:(end-1)] = w[(s+1):end]
       w[end] = i
       return true
     end
@@ -94,7 +94,7 @@ function _braid_moves(
 
     # in all cases we need to move i[n] to the right of jj[n]
     # so that we can later apply the appropriate braid move
-    if !exchange!(W, w1[n], jn[(n + 1):end])
+    if !exchange!(W, w1[n], jn[(n+1):end])
       return nothing
     end
 
@@ -104,35 +104,35 @@ function _braid_moves(
     elseif cij == -1 && cji == -1
       len = 3
       # move jj[n] to the right of jj[n+1]
-      if !exchange!(W, jn[n], jn[(n + 2):end])
+      if !exchange!(W, jn[n], jn[(n+2):end])
         return nothing
       end
     elseif cij == -2 || cji == -2
       len = 4
       # move jj[n] to the right of jj[n+1]
-      if !exchange!(W, jn[n], jn[(n + 2):end])
+      if !exchange!(W, jn[n], jn[(n+2):end])
         return nothing
       end
       # move i[n] to the right of jj[n+2]
-      if !exchange!(W, w1[n], jn[(n + 3):end])
+      if !exchange!(W, w1[n], jn[(n+3):end])
         return nothing
       end
     elseif cij == -3 || cji == -3
       len = 6
       # move jj[n] to the right of jj[n+1]
-      if !exchange!(W, jn[n], jn[(n + 2):end])
+      if !exchange!(W, jn[n], jn[(n+2):end])
         return nothing
       end
       # move i[n] to the right of jj[n+2]
-      if !exchange!(W, w1[n], jn[(n + 3):end])
+      if !exchange!(W, w1[n], jn[(n+3):end])
         return nothing
       end
       # move jj[n] to the right of jj[n+1]
-      if !exchange!(W, jn[n], jn[(n + 4):end])
+      if !exchange!(W, jn[n], jn[(n+4):end])
         return nothing
       end
       # move i[n] to the right of jj[n+2]
-      if !exchange!(W, w1[n], jn[(n + 5):end])
+      if !exchange!(W, w1[n], jn[(n+5):end])
         return nothing
       end
     end
@@ -141,7 +141,7 @@ function _braid_moves(
     # len = 3: compute how to get jj[n:end] into [jj[n], i[n], jj[n], ...]
     # len = 4: compute how to get jj[n:end] into [jj[n], i[n], jj[n], i[n], ...]
     # len = 6: compute how to get jj[n:end] into [jj[n], i[n], jj[n], i[n], jj[n], i[n], ...]
-    mvs2 = _braid_moves(W, jn[(n + 1):end], jo[(n + 1):end], n + offset)
+    mvs2 = _braid_moves(W, jn[(n+1):end], jo[(n+1):end], n + offset)
     if isnothing(mvs2)
       return nothing
     end
@@ -149,11 +149,11 @@ function _braid_moves(
     append!(mvs, mvs2)
     push!(mvs, (n + offset, len, cij))
     if iseven(len)
-      reverse!(jn[n:(n + len - 1)])
+      reverse!(jn[n:(n+len-1)])
     else
       jn[n] = w1[n]
-      jn[n + 1] = jn[n + 2]
-      jn[n + 2] = w1[n]
+      jn[n+1] = jn[n+2]
+      jn[n+2] = w1[n]
     end
     copy!(jo[n:end], jn[n:end])
   end
@@ -171,14 +171,14 @@ See also [`braid_moves`](@ref).
 function apply_braid_move!(w::Vector{UInt8}, mv::Tuple{Int,Int,Int})
   i, len, _ = mv
   if len == 2
-    w[i], w[i + 1] = w[i + 1], w[i]
+    w[i], w[i+1] = w[i+1], w[i]
   elseif len == 3
-    w[i], w[i + 1], w[i + 2] = w[i + 1], w[i], w[i + 1]
+    w[i], w[i+1], w[i+2] = w[i+1], w[i], w[i+1]
   elseif len == 4
-    w[i], w[i + 1], w[i + 2], w[i + 3] = w[i + 1], w[i], w[i + 1], w[i]
+    w[i], w[i+1], w[i+2], w[i+3] = w[i+1], w[i], w[i+1], w[i]
   elseif len == 6
-    w[i], w[i + 1], w[i + 2], w[i + 3], w[i + 4], w[i + 5] = w[i + 1],
-    w[i], w[i + 1], w[i], w[i + 1],
+    w[i], w[i+1], w[i+2], w[i+3], w[i+4], w[i+5] = w[i+1],
+    w[i], w[i+1], w[i], w[i+1],
     w[i]
   end
   return w
@@ -330,12 +330,12 @@ function _isomorphic_group_on_gens(::Type{PermGroup}, W::WeylGroup)
   elseif coxeter_type == :B || coxeter_type == :C
     Sym = symmetric_group(2n)
     gen_G = vcat(
-      [cperm(Sym, [i, i + 1], [i + n, i + 1 + n]) for i in 1:(n - 1)], cperm(Sym, [n, 2n])
+      [cperm(Sym, [i, i + 1], [i + n, i + 1 + n]) for i in 1:(n-1)], cperm(Sym, [n, 2n])
     )
   elseif coxeter_type == :D
     Sym = symmetric_group(2n)
     gen_G = vcat(
-      [cperm(Sym, [i, i + 1], [i + n, i + 1 + n]) for i in 1:(n - 1)],
+      [cperm(Sym, [i, i + 1], [i + n, i + 1 + n]) for i in 1:(n-1)],
       cperm(Sym, [n - 1, 2n], [n, 2n - 1]),
     )
   elseif coxeter_type == :E

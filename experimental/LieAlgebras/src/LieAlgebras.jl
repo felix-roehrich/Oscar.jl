@@ -87,6 +87,7 @@ import ..Oscar:
   symbols,
   symmetric_power,
   tensor_product,
+  weyl_group,
   zero_map,
   ⊕,
   ⊗
@@ -116,6 +117,7 @@ include("DynkinDiagram.jl")
 include("WeylGroup.jl")
 
 include("Crystal.jl")
+include("LusztigDatum.jl")
 include("PathModel.jl")
 
 include("LieAlgebra.jl")

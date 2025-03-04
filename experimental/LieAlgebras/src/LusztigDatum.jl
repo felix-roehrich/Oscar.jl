@@ -1,14 +1,14 @@
-struct LusztigDatum
+struct LusztigDatum <: AbstractCrystalElem
   # datum wrt. to _w0
-  datum::Vector{UInt8}
+  datum::Vector{Int}
   _w0::Vector{UInt8}
   root_system::RootSystem
 
   # w0 used for display purposes
   w0::Vector{UInt8}
 
-  function LusztigDatum(datum::Vector{UInt8}, w0::Vector{UInt8})
-    new(datum, w0, copy(datum), copy(w0))
+  function LusztigDatum(R::RootSystem, datum::Vector{Int}, w0::Vector{UInt8})
+    return new(datum, copy(w0), R, w0)
   end
 end
 
@@ -54,32 +54,54 @@ end
 
 function adapted_string(d::LusztigDatum)
   s = zeros(Int, length(d.w0))
-  for i in 1:length(d.w0)
-    s[i] = d.w0[i] - d.datum[i]
+
+  wn = copy(d._w0)
+  wo = copy(d._w0)
+  datum = copy(d.datum)
+  for i in length(s):-1:1
+    exchange!(weyl_group(d), wn, d.w0[i])
+    for mv in braid_moves(weyl_group(d), wn, wo)
+      _move!(datum, mv)
+    end
+    copyto!(wo, wn)
+
+    s[i] = datum[end]
+    datum[end] = 0
   end
+
   return s
 end
 
 function Crystal.e!(d::LusztigDatum, i::Int)
-  w0 = copy(d._w0)
-  exchange!(W, w0, UInt8(i))
-  _state!(d, w0)
+  _state!(d, UInt8(i))
 
-  datum.datum[1] -= 1
-  if datum.datum[1] < 0
+  d.datum[end] -= 1
+  if d.datum[end] < 0
     return nothing
   end
-  return datum
+  return d
 end
 
-function _state!(d::LusztigDatum, w0::Vector{UInt8})
+function Crystal.f!(d::LusztigDatum, i::Int)
+  _state!(d, UInt8(i))
+  d.datum[end] += 1
+  return d
+end
+
+function _state!(d::LusztigDatum, i::UInt8)
+  if d.w0[end] == i
+    return
+  end
+
+  w0 = copy(d._w0)
+  exchange!(weyl_group(d), w0, i)
   for mv in braid_moves(weyl_group(d), w0, d._w0)
     _move!(d.datum, mv)
   end
-  d._w0 = w0
+  copyto!(d._w0, w0)
 end
 
-function _move!(d::Vector{UInt8}, mv::Tuple{Int,Int,Int})
+function _move!(d::Vector{Int}, mv::Tuple{Int,Int,Int})
   n, len, dir = mv
   if len == 2
     # A1xA1 move
@@ -90,20 +112,22 @@ function _move!(d::Vector{UInt8}, mv::Tuple{Int,Int,Int})
     d[n], d[n+1], d[n+2] = d[n+1] + d[n+2] - m, m, d[n] + d[n+1] - m
   elseif len == 4
     # B2/C2 move
-    if dir == -2
+    if dir == -1
       reverse!(d, n, n + 3)
     end
     m1 = min(d[n], d[n+2])
     m2 = min(d[n] + d[n+1], m1 + d[n+3])
     m3 = min(2 * d[n] + d[n+1], 2 * m1 + d[n+3])
+
     d[n], d[n+1], d[n+2], d[n+3] = d[n+1] + 2 * d[n+2] + d[n+3] - m3,
     m3 - m2, 2 * m2 - m3,
     d[n] + d[n+1] + d[n+2] - m2
-    if dir == -2
+
+    if dir == -1
       reverse!(d, n, n + 3)
     end
   elseif len == 6
-    if dir == -3
+    if dir == -1
       reverse!(d, n, n + 5)
     end
     m1 = min(d[n], d[n+2])
@@ -141,7 +165,8 @@ function _move!(d::Vector{UInt8}, mv::Tuple{Int,Int,Int})
                                                    d[n+5] - m6,
     m6 - m5, 3 * m5 - m6 - m7, m7 - m4 - m5, 3 * m4 - m7,
     d[n+5] + d[n+1] + 2 * d[n+2] + d[n+3] + d[n+4] - m4
-    if dir == -3
+
+    if dir == -1
       reverse!(d, n, n + 5)
     end
   end

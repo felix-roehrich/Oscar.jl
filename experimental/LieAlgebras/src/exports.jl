@@ -12,7 +12,9 @@ export LieAlgebraModuleHom
 export LieSubalgebra
 export LinearLieAlgebra, LinearLieAlgebraElem
 
+export Crystal
 export LSPathModel, LSPathModelElem
+export LusztigDatum
 export PathModel
 
 export abelian_lie_algebra
@@ -48,6 +50,7 @@ export killing_matrix
 export lie_algebra
 export lower_central_series
 export ls_path_model
+export lusztig_datum
 export matrix_repr_basis
 export parabolic_subgroup
 export parabolic_subgroup_with_projection
