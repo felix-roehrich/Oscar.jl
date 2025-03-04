@@ -36,7 +36,11 @@ function lusztig_datum(R::RootSystem, datum::Vector{Int}, w0::Vector{UInt8})
 end
 
 function Base.show(io::IO, d::LusztigDatum)
-  _state!(d, d.w0)
+  for mv in braid_moves(weyl_group(d), d.w0, d._w0)
+    _move!(d.datum, mv)
+  end
+  copyto!(d._w0, d.w0)
+
   print(io, "Lusztig datum (")
   join(io, d.datum, ", ")
   print(io, ") for w0 = (")

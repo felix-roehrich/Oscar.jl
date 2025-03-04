@@ -3,4 +3,7 @@ export QuantumGroup, QuantumGroupElem
 export bar_involution
 export canonical_basis_elem
 export quantum_group
+export quantum_binomial
+export quantum_factorial
 export quantum_parameter
+export string_representation

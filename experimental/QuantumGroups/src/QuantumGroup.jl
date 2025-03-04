@@ -6,19 +6,13 @@ function Nemo.exponent_vector!(
   return z
 end
 
-function Base.reverse!(z::ZZPolyRingElem, x::ZZPolyRingElem, len::Int)
-  len < 0 && throw(DomainError(len, "Index must be non-negative"))
-  @ccall Nemo.libflint.fmpz_poly_reverse(z::Ref{ZZPolyRingElem}, x::Ref{ZZPolyRingElem}, len::Int)::Nothing
-  return z
-end
-
 function bar!(z::LaurentPolyWrap, x::LaurentPolyWrap)
   reverse!(z.poly, x.poly, length(x.poly))
-  z.mindeg = -degree(x.poly)-x.mindeg
+  z.mindeg = -degree(x.poly) - x.mindeg
   return z
 end
 
-function bar!(z::FracFieldElem{T}, x::FracFieldElem{T}) where T <: LaurentPolyWrap
+function bar!(z::FracFieldElem{T}, x::FracFieldElem{T}) where {T<:LaurentPolyWrap}
   bar!(z.num, x.num)
   bar!(z.den, x.den)
   return z
@@ -29,10 +23,10 @@ struct PBWAlgModule
   sdata::Singular.smodule
 end
 
-struct QuantumGroup{T<:FieldElem, S} <: NCRing # S needed for Singular data
+struct QuantumGroup{T<:FieldElem,S} <: NCRing # S needed for Singular data
   A::Any#::LaurentPolynomialRing
 
-  alg::PBWAlgRing{T, S}
+  alg::PBWAlgRing{T,S}
   q::T #::RationalFunctionFieldElem{QQFieldElem,QQPolyRingElem}
   qi::Vector{T} # {RationalFunctionFieldElem{QQFieldElem,QQPolyRingElem}}
   root_system::RootSystem
@@ -74,8 +68,8 @@ function coefficient_ring(U::QuantumGroup)
   return coefficient_ring(U.alg)
 end
 
-function gen(U::QuantumGroup{T, S}, i::Int) where {T, S}
-  return QuantumGroupElem{T, S}(U, gen(U.alg, i))
+function gen(U::QuantumGroup{T,S}, i::Int) where {T,S}
+  return QuantumGroupElem{T,S}(U, gen(U.alg, i))
 end
 
 function gens(U::QuantumGroup)
@@ -99,9 +93,9 @@ function quantum_parameter(U::QuantumGroup, i::Int)
   return U.qi[i]
 end
 
-mutable struct QuantumGroupElem{T<:FieldElem, S}
-  U::QuantumGroup{T, S}
-  elem::PBWAlgElem{T, S}
+mutable struct QuantumGroupElem{T<:FieldElem,S}
+  U::QuantumGroup{T,S}
+  elem::PBWAlgElem{T,S}
 end
 
 function Base.show(io::IO, x::QuantumGroupElem)
@@ -197,12 +191,12 @@ function mul!(x::QuantumGroupElem, y::QuantumGroupElem)
   return mul!(x, x, y)
 end
 
-function mul!(z::QuantumGroupElem{T}, x::QuantumGroupElem{T}, a::T) where T
+function mul!(z::QuantumGroupElem{T}, x::QuantumGroupElem{T}, a::T) where {T}
   z.elem = mul!(z.elem, x.elem, a)
   return z
 end
 
-function mul!(x::QuantumGroupElem{T}, a::T) where T
+function mul!(x::QuantumGroupElem{T}, a::T) where {T}
   return mul!(x, x, a)
 end
 
@@ -237,7 +231,7 @@ function Base.:*(x::QuantumGroupElem, a)
   return mul!(deepcopy(x), a)
 end
 
-function Base.:*(a::T, x::QuantumGroupElem{T}) where T
+function Base.:*(a::T, x::QuantumGroupElem{T}) where {T}
   return mul!(deepcopy(x), a)
 end
 
@@ -287,8 +281,8 @@ function trailing_coefficient(x::QuantumGroupElem)
   return trailing_coefficient(x.elem)
 end
 
-function Singular.trailing_exponent_vector(x::QuantumGroupElem)
-  return Singular.trailing_exponent_vector(x.elem)
+function trailing_exponent_vector(x::QuantumGroupElem)
+  error("not implemented")
 end
 
 ###############################################################################
@@ -460,7 +454,7 @@ function bar_involution(U::QuantumGroup)
           t = mul!(t, img[i])
         end
       end
-      
+
       bar!(barred, leading_coefficient(term))
       val = addmul!(val, t, barred)
       t = one!(t)
@@ -468,46 +462,6 @@ function bar_involution(U::QuantumGroup)
 
     return QuantumGroupElem(U, val)
   end
-end
-
-###############################################################################
-#
-#   Canonical basis
-#
-###############################################################################
-
-function _canonical_basis_elem(U::QuantumGroup, b::Vector{Int})
-  bar = bar_involution(U)
-  return get!(U.canonical_basis, b) do
-    F = one(U)
-    for i in 1:length(b)
-      for _ in 1:b[i]
-        F = mul!(F, gen(U, i))
-      end
-      mul!(F, inv(quantum_factorial(b[i], U.qi[i])))
-    end
-
-    G = F
-    F = sub!(bar(F), F)
-    while !iszero(F)
-      elem = canonical_basis_elem(U, Singular.trailing_exponent_vector(F))
-      cf1 = numerator(div(trailing_coefficient(F), trailing_coefficient(elem)))
-
-      # split the coefficient into positive and negative powers of q
-      # use postive powers for the canoncial basis element and discard the negative powers
-      # this corresponds to b and bar(b)
-      cf2 = coefficient_ring(U)(parent(cf1.poly)([coeff(cf1, n) for n in 0:degree(cf1.poly)]))
-
-      G = addmul!(G, elem, cf2)
-      F = submul!(F, elem, coefficient_ring(U)(cf1))
-    end
-
-    return G.elem
-  end
-end
-
-function canonical_basis_elem(U::QuantumGroup, b::Vector{Int})
-  return QuantumGroupElem(U, _canonical_basis_elem(U, b))
 end
 
 function quantum_integer(n::Int, q::RingElem)
@@ -540,11 +494,49 @@ function quantum_binomial(U::QuantumGroup, n::Int, k::Int)
   return z
 end
 
-function set_canonical_basis_elem!(U::QuantumGroup, b::Vector{Int}, x::QuantumGroupElem)
-  return U.canonical_basis[b] = x.elem
-end
-
 =#
+
+###############################################################################
+#
+#   Printing
+#
+###############################################################################
+
+function string_representation(x::QuantumGroupElem{T}) where {T}
+  U = parent(x)
+  rep = Tuple{T,Vector{Int}}[]
+  y = deepcopy(x.elem.sdata)
+
+  npos = number_of_positive_roots(root_system(U))
+  refl = weyl_group(root_system(U)).refl
+  cvx = zeros(Int, npos)
+  for i in 1:npos
+    beta = U.w0[i]
+    for j in (i-1):-1:1
+      beta = refl[U.w0[j], beta]
+    end
+    cvx[beta] = i
+  end
+
+  F = gens(parent(y))
+  while !iszero(y)
+    t = Singular.trailing_term(y)
+    exp = leading_exponent_vector(t)
+    s = adapted_string(LusztigDatum(root_system(U), exp, U.w0))
+
+    f = one(t)
+    for i in 1:length(U.w0)
+      f = mul!(f, F[cvx[U.w0[i]]]^s[i])
+      f = mul!(f, inv(quantum_factorial(s[i], U.qi[cvx[U.w0[i]]])))
+    end
+
+    coeff = coefficient_ring(U)(trailing_coefficient(t) // trailing_coefficient(f))
+    push!(rep, (coeff, s))
+    y = submul!(y, f, coeff)
+  end
+
+  return rep
+end
 
 ###############################################################################
 #
