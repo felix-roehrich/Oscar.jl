@@ -411,6 +411,7 @@ function string_representation(x::QuantumGroupElem{T}) where {T}
   F = gens(parent(y))
   while !iszero(y)
     t = Singular.trailing_term(y)
+    println(t)
     exp = leading_exponent_vector(t)
     s = adapted_string(lusztig_datum(root_system(U), exp, U.w0))
 
@@ -422,6 +423,7 @@ function string_representation(x::QuantumGroupElem{T}) where {T}
 
     coeff = coefficient_ring(U)(trailing_coefficient(t) // trailing_coefficient(f))
     push!(rep, (coeff, s))
+    println((coeff, s))
     y = submul!(y, f, coeff)
   end
 
