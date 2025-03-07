@@ -92,13 +92,15 @@ function star_involution(U::QuantumGroup)
   return function (x::QuantumGroupElem)
     z = zero(U)
     t = one(U)
-    for i in 1:length(x)
-      exp = exponent_vector(x, i)
+
+    i = 1
+    for exp in Singular.exponent_vectors(x.elem)
       for j in length(exp):-1:1
         t = mul!(t, gen(U, j)^exp[j])
       end
-      set_coeff!(t, coeff(x, i))
+      setcoeff!(t, 1, coeff(x.elem, i))
       z = add!(z, t)
+      i += 1
     end
 
     return z

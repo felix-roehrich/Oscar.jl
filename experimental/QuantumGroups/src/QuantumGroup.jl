@@ -131,6 +131,10 @@ function one(x::QuantumGroupElem)
   return one(parent(x))
 end
 
+function length(x::QuantumGroupElem)
+  return length(x.elem)
+end
+
 ###############################################################################
 
 function add!(z::QuantumGroupElem, x::QuantumGroupElem, y::QuantumGroupElem)
