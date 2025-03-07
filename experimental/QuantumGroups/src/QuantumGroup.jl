@@ -246,8 +246,8 @@ function coeff(x::QuantumGroupElem, i::Int)
   return coeff(x.elem, i)
 end
 
-function set_coeff!(x::QuantumGroupElem{T}, i::Int, a::T) where {T}
-  set_coeff!(x.elem, i, a)
+function setcoeff!(x::QuantumGroupElem{T}, i::Int, a::T) where {T}
+  setcoeff!(x.elem, i, a)
   return x
 end
 
@@ -277,9 +277,8 @@ end
 #
 ###############################################################################
 
+#UInt8[3, 2, 1, 3, 2, 3, 1, 2, 1]
 function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
-  w0 = UInt8[3, 2, 1, 3, 2, 3, 1, 2, 1]
-
   A, q = laurent_polynomial_ring(ZZ, "q")
   QA = fraction_field(A)
   P, theta = polynomial_ring(QA, :F => 1:length(w0))
