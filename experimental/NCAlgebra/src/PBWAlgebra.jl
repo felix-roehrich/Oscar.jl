@@ -25,6 +25,34 @@ struct PBWAlg{T<:FieldElem}
       [m1, m2, m3]
     )
   end
+
+  function PBWAlg(R::MPolyRing{T}, rels::Vector{MPoly{T}}) where {T<:FieldElem}
+    mult = Vector{Matrix{MPoly{T}}}(undef, length(rels))
+    for i in 1:length(rels)
+      if length(rels[i]) == 1 # quasi-commuative case
+        mult[i] = Matrix{MPoly{T}}(undef, 1, 1)
+      else
+        mult[i] = Matrix{MPoly{T}}(undef, pbwAlg_multGrow, pbwAlg_multGrow)
+      end
+      mult[i][1, 1] = rels[i]
+    end
+
+    return new{T}(R, rels, mult)
+  end
+end
+
+function pbw_algebra(R::MPolyRing{T}, rels::Vector{MPoly{T}}) where {T<:FieldElem}
+  return PBWAlg(R, rels)
+end
+
+function pbw_algebra(R::MPolyRing{T}, rels::Matrix{MPoly{T}}) where {T<:FieldElem}
+  N = ngens(R)
+  rels2 = [rels[i, j] for i in 1:N, j in i+1:N]
+  return PBWAlg(R, rels2)
+end
+
+function _linear_index(A::PBWAlg, i::Int, j::Int)
+  return div((i - 1) * (2 * ngens(A) - i - 2), 2) + j - 1
 end
 
 mutable struct PBWAlgebraElem{T<:FieldElem}
@@ -82,6 +110,7 @@ function parent(x::PBWAlgebraElem)
 end
 
 function Base.show(io::IO, x::PBWAlgebraElem)
+  #AbstractAlgebra.combine_like_terms!(x.poly)
   show(io, x.poly)
 end
 
@@ -114,6 +143,45 @@ function mul!(z::PBWAlgebraElem{T}, x::PBWAlgebraElem{T}, y::T) where {T<:FieldE
   return z
 end
 
+function pow!(z::PBWAlgebraElem, x::PBWAlgebraElem, n::Int)
+  if is_zero(x)
+    return zero!(z)
+  end
+
+  if length(x) == 1
+    exp = AbstractAlgebra.exponent_vector_ref(x.poly, 1)
+    c = 0
+    for i in 1:length(exp)
+      if exp[i] != 0
+        c += 1
+        if c > 1
+          break
+        end
+      end
+    end
+    if c <= 1
+      z.poly = pow!(z.poly, x.poly, n)
+      return z
+    end
+  end
+
+  z = one!(z)
+  for _ in 1:n
+    z = z * x
+  end
+  return z
+end
+
+function sub!(z::PBWAlgebraElem, x::PBWAlgebraElem, y::PBWAlgebraElem)
+  z.poly = sub!(z.poly, x.poly, y.poly)
+  return z
+end
+
+function swap!(x::PBWAlgebraElem{T}, y::PBWAlgebraElem{T}) where {T<:FieldElem}
+  x.poly, y.poly = y.poly, x.poly
+  return x
+end
+
 ###############################################################################
 
 function Base.:+(x::PBWAlgebraElem, y::PBWAlgebraElem)
@@ -130,26 +198,18 @@ function Base.:*(x::PBWAlgebraElem{T}, y::T) where {T<:FieldElem}
   return mul!(zero(x), x, y)
 end
 
+function Base.:*(x::T, y::PBWAlgebraElem{T}) where {T<:FieldElem}
+  return mul!(zero(y), y, x)
+end
+
 function Base.:^(x::PBWAlgebraElem, n::Int)
   if n < 0
     throw(DomainError(n, "exponent must be >= 0"))
   elseif n == 0
     return one(x)
-  elseif length(x) == 1
-    return PBWAlgebraElem(parent(x), x.poly^n)
   end
 
-  z1 = deepcopy(x)
-  z2 = deepcopy(x)
-  for i in 1:n
-    if isodd(i)
-      mul!(z1, z2, x)
-    else
-      mul!(z2, z1, x)
-    end
-  end
-
-  return isodd(n) ? z2 : z1
+  return pow!(zero(x), x, n)
 end
 
 ###############################################################################
@@ -160,6 +220,11 @@ end
 
 function one(x::PBWAlgebraElem)
   return PBWAlgebraElem(parent(x), one(x.poly))
+end
+
+function one!(x::PBWAlgebraElem)
+  x.poly = one!(x.poly)
+  return x
 end
 
 function is_zero(x::PBWAlgebraElem)
@@ -197,47 +262,30 @@ end
 #
 ###############################################################################
 
-#define UPMATELEM(i,j,nVar) ( (nVar * ((i)-1) - ((i) * ((i)-1))/2 + (j)-1)-(i) )
-function _multiplication(rels::Vector, C::ZZMatrix, D::ZZMatrix)
-  N = 0 # number of vars
-  MTsize = [] # size of the multiplication table
-  R::Ring # polynomial ring
-  MT = zeros(R, N) # multiplication table
-
-  p = one(R)
-  for i in 1:N
-    for j in i+1:N
-      n = div(i * (i - 1), 2) + j - 1
-      # quasi-commuative case
-      if is_zero_entry(D, n)
-        MTsize[n] = 1
-        MT[n] = identity_matrix(ZZ, 2)
-      else
-        MTsize[n] = pbwAlg_multGrow
-        MT[n] = zero_matrix(ZZ, pbwAlg_multGrow, pbwAlg_multGrow)
-      end
-
-      # purely non-commutative case
-      if !is_zero_entry(C, n)
-        MT[n][1, 1] = rels[n]
-      end
-    end
-  end
-end
-
 # multiply polynomials x and y and store the result in z
 function _mul_p_p!(A::PBWAlg{T}, z::MPoly{T}, x::MPoly{T}, y::MPoly{T}) where {T<:FieldElem}
+  if is_one(x)
+    z = zero!(z)
+    add!(z, y)
+    return z
+  elseif is_one(y)
+    z = zero!(z)
+    add!(z, x)
+    return z
+  end
+
   z = zero!(z)
   res = zero(z)
   for i in 1:length(x)
     for j in 1:length(y)
-      _mul_m_m!(A, res, exponent_vector(x, i, Val(:lex)), exponent_vector(y, j, Val(:lex)))
+      _mul_m_m!(A, res, AbstractAlgebra.exponent_vector_ref(x, i), AbstractAlgebra.exponent_vector_ref(y, j))
       if !is_one(coeff(x, i))
         mul!(res, coeff(x, i))
       end
       if !is_one(coeff(y, j))
         mul!(res, coeff(y, j))
       end
+      println(res)
       add!(z, res)
     end
   end
@@ -247,7 +295,7 @@ function _mul_p_m!(A::PBWAlg{T}, z::MPoly{T}, x::MPoly{T}, y::AbstractVector{Int
   z = zero!(z)
   res = zero(z)
   for i in 1:length(x)
-    _mul_m_m!(A, res, exponent_vector(x, i, Val{:lex}), y)
+    _mul_m_m!(A, res, AbstractAlgebra.exponent_vector_ref(x, i), y)
     if !is_one(coeff(x, i))
       mul!(res, coeff(x, i))
     end
@@ -259,8 +307,8 @@ function _mul_m_p!(A::PBWAlg, z::MPoly, x::AbstractVector{Int}, y::MPoly)
   z = zero!(z)
   res = zero(z)
   for i in 1:length(y)
-    _mul_m_m!(A, res, x, exponent_vector(y, i, Val(:lex)))
-    if !is_one(coeff(x, i))
+    _mul_m_m!(A, res, x, AbstractAlgebra.exponent_vector_ref(y, i))
+    if !is_one(coeff(y, i))
       mul!(res, coeff(y, i))
     end
     add!(z, res)
@@ -271,19 +319,23 @@ end
 function _mul_m_m!(A::PBWAlg, z::MPoly, x::AbstractVector{Int}, y::AbstractVector{Int})
   xl = findlast(!iszero, x)
   if isnothing(xl)
-    return zero!(z)
+    z = one!(z)
+    AbstractAlgebra.add_exponent_vector!(z, 1, y)
+    return z
   end
 
   yf = findfirst(!iszero, y)
   if isnothing(yf)
-    return zero!(z)
+    z = one!(z)
+    AbstractAlgebra.add_exponent_vector!(z, 1, x)
+    return z
   end
 
   # monomials are ordered, no need for exchange relations
   if xl <= yf
     one!(z)
-    z.exps[:, 1] += x
-    z.exps[:, 1] += y
+    AbstractAlgebra.add_exponent_vector!(z, 1, x)
+    AbstractAlgebra.add_exponent_vector!(z, 1, y)
     return z
   end
 
@@ -308,22 +360,74 @@ function _mul_m_m!(A::PBWAlg, z::MPoly, x::AbstractVector{Int}, y::AbstractVecto
   else
     AbstractAlgebra.swap!(z, tmp)
   end
+  return z
 end
+
+#=
+r1 = zero(z)
+r2 = zero(z)
+mon = zeros(Int, ngens(A))
+
+# apply exchange relation
+i = xl
+while i > yf
+  if x[i] == 0
+    i -= 1
+    continue
+  end
+
+  j = yf
+  copyto!(mon, y)
+  while i > j
+    if y[j] != 0
+      _mul_gens(A, r1, i, x[i], j, y[j])
+      r2 = mul!(r2, r1)
+      mon[j] = 0
+      if length(r1) > 1
+        break
+      end
+    end
+    j += 1
+  end
+  if i > j # we stopped because length(res) > 1
+    _mul_p_m!(A, r1, r2, mon)
+    AbstractAlgebra.swap!(r2, r1)
+  else
+    AbstractAlgebra.add_exponent_vector!(r2, 1, mon)
+  end
+
+  zero!(mon)
+  while x[i] == 0 && i > 0
+    i -= 1
+  end
+  copyto!(mon, 1, x, 1, i)
+  if i > yf
+    _mul_m_p!(A, r1, mon, r2)
+  else
+    for k in 1:length(r2)
+      add_exponent_vector!(r2, k, mon)
+    end
+    AbstractAlgebra.swap!(r1, r2)
+  end
+  z = add!(z, r1)
+end
+return z
+=#
 
 # i > j
 function _mul_gens(A::PBWAlg{T}, z::MPoly, i::Int, n::Int, j::Int, m::Int) where {T<:FieldElem}
-  ind = (j - 1) * (ngens(A) - j) + i - 1
+  ind = _linear_index(A, j, i)
 
   # quasi-commutative case
   if length(A.rels[ind]) == 1
     one!(z)
-    AbstractAlgebra.add_exponent!(z, 1, i, n, Val(:lex))
-    AbstractAlgebra.add_exponent!(z, 1, j, m, Val(:lex))
+    AbstractAlgebra.add_exponent!(z, 1, i, n)
+    AbstractAlgebra.add_exponent!(z, 1, j, m)
     cf = coeff(A.mult[ind][1, 1], 1)
     if !is_one(cf)
       pow!(coeff(z, 1), cf, n * m)
     end
-    return
+    return z
   end
 
   # current and required multiplication table size
@@ -359,5 +463,5 @@ function _mul_gens(A::PBWAlg{T}, z::MPoly, i::Int, n::Int, j::Int, m::Int) where
     end
   end
 
-  add!(z, A.mult[ind][n, m])
+  return add!(z, A.mult[ind][n, m])
 end
