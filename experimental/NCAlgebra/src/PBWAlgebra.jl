@@ -285,7 +285,6 @@ function _mul_p_p!(A::PBWAlg{T}, z::MPoly{T}, x::MPoly{T}, y::MPoly{T}) where {T
       if !is_one(coeff(y, j))
         mul!(res, coeff(y, j))
       end
-      println(res)
       add!(z, res)
     end
   end
