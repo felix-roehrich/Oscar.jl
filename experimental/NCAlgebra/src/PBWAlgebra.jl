@@ -441,11 +441,13 @@ function _mul_gens(A::PBWAlg{T}, z::MPoly, i::Int, n::Int, j::Int, m::Int) where
   else
     newSize = reqSize + pbwAlg_multGrow
     mult = Matrix{MPoly{T}}(undef, newSize, newSize)
-    copyto!(mult, A.mult[ind])
+    for k in 1:curSize
+      copyto!(mult, (k-1)*newSize+1, A.mult[ind], (k-1)*curSize+1, curSize)
+    end
     A.mult[ind] = mult
   end
 
-  mon = zeros(Int, ngens(A) + 1)
+  mon = zeros(Int, ngens(A))
   mon[i] = 1
   for k in 2:n
     if !isassigned(A.mult[ind], k, 1)

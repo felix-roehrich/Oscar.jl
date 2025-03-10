@@ -56,5 +56,19 @@
     @test (q^2 + q^-2) * F[4]^2 * F[1]
     @test F[4]^2 * F[1]^2
     @test (F[7] + F[9]) * (F[1] + F[7]) == q^2 * F[1] * F[7] + F[1] * F[9] + F[4] + F[7]^2 + q^2 * F[7] * F[9] + F[8]
+    
+    # the following tests that the multiplication table
+    # is copied correctly, when growing size.
+    
+    U = PBWAlgebra(R, rels)
+    F = gens(U)
+    # multiplication order (2, 1), (2, 2), (2, 3), (2, 4); (3, 1) ... (6, 1) ... (6, 3)
+    _ = F[7]^2*F[1]^4
+    @test leading_monomial(F[7]^6*F[1]^3) = F[1]^3*F[7]^6
+    
+    U = PBWAlgebra(R, rels)
+    F = gens(U)
+    # multiplication order (2, 1) ... (6, 1) ... (6, 3)
+    @test leading_monomial(F[7]^6*F[1]^3) = F[1]^3*F[7]^6
   end
 end
