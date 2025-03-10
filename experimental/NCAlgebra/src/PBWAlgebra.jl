@@ -279,12 +279,8 @@ function _mul_p_p!(A::PBWAlg{T}, z::MPoly{T}, x::MPoly{T}, y::MPoly{T}) where {T
   for i in 1:length(x)
     for j in 1:length(y)
       _mul_m_m!(A, res, AbstractAlgebra.exponent_vector_ref(x, i), AbstractAlgebra.exponent_vector_ref(y, j))
-      if !is_one(coeff(x, i))
-        mul!(res, coeff(x, i))
-      end
-      if !is_one(coeff(y, j))
-        mul!(res, coeff(y, j))
-      end
+      mul!(res, coeff(x, i))
+      mul!(res, coeff(y, j))
       add!(z, res)
     end
   end
@@ -295,9 +291,7 @@ function _mul_p_m!(A::PBWAlg{T}, z::MPoly{T}, x::MPoly{T}, y::AbstractVector{Int
   res = zero(z)
   for i in 1:length(x)
     _mul_m_m!(A, res, AbstractAlgebra.exponent_vector_ref(x, i), y)
-    if !is_one(coeff(x, i))
-      mul!(res, coeff(x, i))
-    end
+    mul!(res, coeff(x, i))
     add!(z, res)
   end
 end
@@ -307,9 +301,7 @@ function _mul_m_p!(A::PBWAlg, z::MPoly, x::AbstractVector{Int}, y::MPoly)
   res = zero(z)
   for i in 1:length(y)
     _mul_m_m!(A, res, x, AbstractAlgebra.exponent_vector_ref(y, i))
-    if !is_one(coeff(y, i))
-      mul!(res, coeff(y, i))
-    end
+    mul!(res, coeff(y, i))
     add!(z, res)
   end
 end
