@@ -50,6 +50,9 @@ function coefficient_ring(U::QuantumGroup)
   return coefficient_ring(U.alg)
 end
 
+###############################################################################
+# Generators
+
 function gen(U::QuantumGroup{T,S}, i::Int) where {T,S}
   return QuantumGroupElem{T,S}(U, gen(U.alg, i))
 end
@@ -58,9 +61,15 @@ function gens(U::QuantumGroup)
   return [gen(U, i) for i in 1:ngens(U)]
 end
 
+function chevalley_gens(U::QuantumGroup)
+  return [gen(U, U.cvx[i]) for i in 1:rank(root_system(U))]
+end
+
 function ngens(U::QuantumGroup)
   return ngens(U.alg)
 end
+
+###############################################################################
 
 function quantum_parameter(U::QuantumGroup)
   return U.q
@@ -74,10 +83,6 @@ Return the quantum parameter for the `i`-th positive root (ordered in convex ord
 function quantum_parameter(U::QuantumGroup, i::Int)
   return U.qi[i]
 end
-
-#function Base.show(io::IO, x::QuantumGroupElem)
-#  show(io, x.elem)
-#end
 
 function expressify(x::QuantumGroupElem; context=nothing)
   expr = Expr(:call, :+)
@@ -216,11 +221,11 @@ function Base.:*(a::T, x::QuantumGroupElem{T}) where {T}
   return mul!(deepcopy(x), a)
 end
 
-function Base.:/(x::QuantumGroupElem, a::T) where {T}
+function Base.:/(x::QuantumGroupElem{T}, a::T) where {T}
   return div!(deepcopy(x), a)
 end
 
-function Base.:(//)(x::QuantumGroupElem, a::T) where {T}
+function Base.:(//)(x::QuantumGroupElem{T}, a::T) where {T}
   return div!(deepcopy(x), a)
 end
 
@@ -277,7 +282,6 @@ end
 #
 ###############################################################################
 
-#UInt8[3, 2, 1, 3, 2, 3, 1, 2, 1]
 function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
   A, q = laurent_polynomial_ring(ZZ, "q")
   QA = fraction_field(A)
@@ -337,6 +341,15 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
     end
   end
 
+  cvx = zeros(Int, npos)
+  for i in 1:npos
+    beta = w0[i]
+    for j in (i-1):-1:1
+      beta = weyl_group(R).refl[w0[j], beta]
+    end
+    cvx[beta] = i
+  end
+
   alg, _ = pbw_algebra(P, rels, lex(theta))
   return QuantumGroup(
     A,
@@ -345,12 +358,9 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
     [QA(q)^div(r * gapBil * r, 2) for r in GAP.Globals.PositiveRootsInConvexOrder(gapR)],
     R,
     w0,
+    cvx,
     Dict{Vector{Int},PBWAlgElem}(),
   )
-end
-
-function _terms(x::QuantumGroupElem)
-  return terms(x.elem)
 end
 
 function quantum_integer(n::Int, q::RingElem)
@@ -417,7 +427,7 @@ function string_representation(x::QuantumGroupElem{T}) where {T}
     f = one!(f)
     for i in 1:length(U.w0)
       f = mul!(f, F[cvx[U.w0[i]]]^s[i])
-      f = mul!(f, inv!(quantum_factorial(s[i], U.qi[cvx[U.w0[i]]])))
+      f = mul!(f, inv!(factorial(s[i], U.qi[cvx[U.w0[i]]])))
     end
 
     coeff = coefficient_ring(U)(trailing_coefficient(t) // trailing_coefficient(f))

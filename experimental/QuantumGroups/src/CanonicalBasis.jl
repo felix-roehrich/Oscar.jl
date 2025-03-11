@@ -13,7 +13,7 @@ function _canonical_basis_elem(U::QuantumGroup, b::Vector{Int})
       for _ in 1:b[i]
         F = mul!(F, gen(U, i))
       end
-      mul!(F, inv(quantum_factorial(b[i], U.qi[i])))
+      mul!(F, inv(factorial(b[i], U.qi[i])))
     end
 
     G = F
