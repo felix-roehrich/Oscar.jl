@@ -1,30 +1,9 @@
 const pbwAlg_multGrow = 5
 
-struct PBWAlg{T<:FieldElem}
+struct PBWAlg{T<:FieldElem} <: NCRing
   R::MPolyRing{T}
   rels::Vector{MPoly{T}}
   mult::Vector{Matrix{MPoly{T}}}
-
-  function PBWAlg()
-    A, q = laurent_polynomial_ring(ZZ, "q")
-    QA = fraction_field(A)
-    R, f = polynomial_ring(QA, ("F" => 1:3))
-
-    rels = [q^-1 * f[1] * f[2], q * f[1] * f[3] + f[2], q^-1 * f[2] * f[3]]
-
-    m1 = Array{MPoly}(undef, pbwAlg_multGrow, pbwAlg_multGrow)
-    m1[1, 1] = rels[1]
-    m2 = Array{MPoly}(undef, pbwAlg_multGrow, pbwAlg_multGrow)
-    m2[1, 1] = rels[2]
-    m3 = Array{MPoly}(undef, pbwAlg_multGrow, pbwAlg_multGrow)
-    m3[1, 1] = rels[3]
-
-    return new{elem_type(QA)}(
-      R,
-      rels,
-      [m1, m2, m3]
-    )
-  end
 
   function PBWAlg(R::MPolyRing{T}, rels::Vector{MPoly{T}}) where {T<:FieldElem}
     mult = Vector{Matrix{MPoly{T}}}(undef, length(rels))
@@ -299,9 +278,9 @@ end
 function _mul_m_p!(A::PBWAlg, z::MPoly, x::AbstractVector{Int}, y::MPoly)
   z = zero!(z)
   res = zero(z)
-  for i in 1:length(y)
-    _mul_m_m!(A, res, x, AbstractAlgebra.exponent_vector_ref(y, i))
-    mul!(res, coeff(y, i))
+  for j in 1:length(y)
+    _mul_m_m!(A, res, x, AbstractAlgebra.exponent_vector_ref(y, j))
+    mul!(res, coeff(y, j))
     add!(z, res)
   end
 end
@@ -331,7 +310,7 @@ function _mul_m_m!(A::PBWAlg, z::MPoly, x::AbstractVector{Int}, y::AbstractVecto
   end
 
   tmp = zero(z)
-  mon = zeros(Int, ngens(A) + 1)
+  mon = zeros(Int, ngens(A))
 
   # apply exchange relation
   _mul_gens(A, z, xl, x[xl], yf, y[yf])
@@ -353,57 +332,6 @@ function _mul_m_m!(A::PBWAlg, z::MPoly, x::AbstractVector{Int}, y::AbstractVecto
   end
   return z
 end
-
-#=
-r1 = zero(z)
-r2 = zero(z)
-mon = zeros(Int, ngens(A))
-
-# apply exchange relation
-i = xl
-while i > yf
-  if x[i] == 0
-    i -= 1
-    continue
-  end
-
-  j = yf
-  copyto!(mon, y)
-  while i > j
-    if y[j] != 0
-      _mul_gens(A, r1, i, x[i], j, y[j])
-      r2 = mul!(r2, r1)
-      mon[j] = 0
-      if length(r1) > 1
-        break
-      end
-    end
-    j += 1
-  end
-  if i > j # we stopped because length(res) > 1
-    _mul_p_m!(A, r1, r2, mon)
-    AbstractAlgebra.swap!(r2, r1)
-  else
-    AbstractAlgebra.add_exponent_vector!(r2, 1, mon)
-  end
-
-  zero!(mon)
-  while x[i] == 0 && i > 0
-    i -= 1
-  end
-  copyto!(mon, 1, x, 1, i)
-  if i > yf
-    _mul_m_p!(A, r1, mon, r2)
-  else
-    for k in 1:length(r2)
-      add_exponent_vector!(r2, k, mon)
-    end
-    AbstractAlgebra.swap!(r1, r2)
-  end
-  z = add!(z, r1)
-end
-return z
-=#
 
 # i > j
 function _mul_gens(A::PBWAlg{T}, z::MPoly, i::Int, n::Int, j::Int, m::Int) where {T<:FieldElem}
