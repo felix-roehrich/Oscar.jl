@@ -11,7 +11,7 @@ struct QuantumGroup{T<:FieldElem,S} <: NCRing # S needed for Singular data
   canonical_basis::Dict{Vector{Int},PBWAlgElem}
 end
 
-mutable struct QuantumGroupElem{T<:FieldElem,S}
+mutable struct QuantumGroupElem{T<:FieldElem,S} <: NCRingElem
   U::QuantumGroup{T,S}
   elem::PBWAlgElem{T,S}
 end

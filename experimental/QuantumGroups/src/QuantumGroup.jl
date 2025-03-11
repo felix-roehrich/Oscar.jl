@@ -271,10 +271,6 @@ function trailing_coefficient(x::QuantumGroupElem)
   return trailing_coefficient(x.elem)
 end
 
-function trailing_exponent_vector(x::QuantumGroupElem)
-  error("not implemented")
-end
-
 ###############################################################################
 #
 #   Quantum Group constructor
