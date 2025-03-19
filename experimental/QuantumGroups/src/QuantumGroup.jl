@@ -209,6 +209,14 @@ function Base.:*(x::QuantumGroupElem{T}, a::Union{Integer, Rational, AbstractFlo
   return mul!(deepcopy(x), a)
 end
 
+function Base.:/(x::QuantumGroupElem{T}, a::T) where {T <: FieldElem}
+  return div!(deepcopy(x), a)
+end
+
+function Base.://(x::QuantumGroupElem{T}, a::T) where {T <: FieldElem}
+  return div!(deepcopy(x), a)
+end
+
 function Base.:*(a::Union{Integer, Rational, AbstractFloat, T}, x::QuantumGroupElem{T}) where {T <: FieldElem}
   return mul!(deepcopy(x), a)
 end
@@ -411,7 +419,7 @@ function string_representation(x::QuantumGroupElem{T}) where {T}
     f = one!(f)
     for i in 1:length(U.w0)
       f = mul!(f, F[cvx[U.w0[i]]]^s[i])
-      f = mul!(f, inv!(factorial(s[i], U.qi[cvx[U.w0[i]]])))
+      f = mul!(f, inv!(quantum_factorial(s[i], U.qi[cvx[U.w0[i]]])))
     end
 
     coeff = coefficient_ring(U)(trailing_coefficient(t) // trailing_coefficient(f))
@@ -430,12 +438,14 @@ function canonical_basis_representation(x::QuantumGroupElem{T}) where {T<:FieldE
   while !iszero(y)
     t = Singular.trailing_term(y)
     exp = leading_exponent_vector(t)
-    can = canonical_basis_elem(U, exp)
+    can = _canonical_basis_elem(U, exp).sdata
 
     coeff = coefficient_ring(U)(trailing_coefficient(t) // trailing_coefficient(can))
     push!(rep, (coeff, exp))
     y = submul!(y, can, coeff)
   end
+  
+  return rep
 end
 
 ###############################################################################
