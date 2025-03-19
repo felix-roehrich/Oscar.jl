@@ -170,17 +170,9 @@ function mul!(z::QuantumGroupElem, x::QuantumGroupElem, y::QuantumGroupElem)
   return z
 end
 
-function mul!(x::QuantumGroupElem, y::QuantumGroupElem)
-  return mul!(x, x, y)
-end
-
-function mul!(z::QuantumGroupElem{T}, x::QuantumGroupElem{T}, a::T) where {T}
+function mul!(z::QuantumGroupElem{T}, x::QuantumGroupElem{T}, a::Union{Integer, Rational, AbstractFloat, T}) where {T}
   z.elem = mul!(z.elem, x.elem, a)
   return z
-end
-
-function mul!(x::QuantumGroupElem{T}, a::T) where {T}
-  return mul!(x, x, a)
 end
 
 function neg!(z::QuantumGroupElem, x::QuantumGroupElem)
@@ -208,25 +200,17 @@ end
 
 ###############################################################################
 
-function Base.:*(x::QuantumGroupElem, y::QuantumGroupElem)
+function Base.:*(x::QuantumGroupElem{T}, y::QuantumGroupElem{T}) where {T <: FieldElem}
   @req parent(x) == parent(y) "parent mismatch"
   return mul!(deepcopy(x), y)
 end
 
-function Base.:*(x::QuantumGroupElem{T}, a::T) where {T}
+function Base.:*(x::QuantumGroupElem{T}, a::Union{Integer, Rational, AbstractFloat, T}) where {T <: FieldElem}
   return mul!(deepcopy(x), a)
 end
 
-function Base.:*(a::T, x::QuantumGroupElem{T}) where {T}
+function Base.:*(a::Union{Integer, Rational, AbstractFloat, T}, x::QuantumGroupElem{T}) where {T <: FieldElem}
   return mul!(deepcopy(x), a)
-end
-
-function Base.:/(x::QuantumGroupElem{T}, a::T) where {T}
-  return div!(deepcopy(x), a)
-end
-
-function Base.:(//)(x::QuantumGroupElem{T}, a::T) where {T}
-  return div!(deepcopy(x), a)
 end
 
 function Base.:+(x::QuantumGroupElem, y::QuantumGroupElem)
