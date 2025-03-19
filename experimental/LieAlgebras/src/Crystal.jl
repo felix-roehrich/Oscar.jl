@@ -140,3 +140,42 @@ function Crystal.f!(b::AbstractCrystalElem, i::Vector{Int}, n::Vector{Int})
   end
   return b
 end
+
+struct CrystalTensorProduct <: AbstractCrystal
+end
+
+struct CrystalTensorProductElem <: AbstractCrystalElem
+  b::Vector{<:AbstractCrystalElem}
+  parent::CrystalTensorProduct
+end
+
+function Base.show(io::IO, b::CrystalTensorProductElem)
+  println(io, "$(b.b[1]) (x) $(b.b[2])")
+end
+
+function Crystal.f!(b::CrystalTensorProductElem, i::Int)
+  if Crystal.phi(b.b[1], i) > Crystal.eps(b.b[2], i)
+    Crystal.f!(b.b[1], i)
+  else
+    Crystal.f!(b.b[2], i)
+  end
+  return b
+end
+
+function Crystal.e!(b::CrystalTensorProductElem, i::Int)
+  if Crystal.phi(b.b[1], i) >= Crystal.eps(b.b[2], i)
+    Crystal.e!(b.b[1], i)
+  else
+    Crystal.e!(b.b[2], i)
+  end
+end
+
+function Crystal.eps(b::CrystalTensorProductElem, i::Int)
+  return max(
+    Crystal.eps(b.b[1], i), Crystal.eps(b.b[2], i) - Int(Crystal.weight(b.b[1])[i])
+  )
+end
+
+function tensor_product(b1::AbstractCrystalElem, b2::AbstractCrystalElem)
+  return CrystalTensorProductElem([b1, b2], CrystalTensorProduct())
+end

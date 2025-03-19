@@ -438,6 +438,22 @@ function string_representation(x::QuantumGroupElem{T}) where {T}
   return rep
 end
 
+function canonical_basis_representation(x::QuantumGroupElem{T}) where {T<:FieldElem}
+  U = parent(x)
+  rep = Tuple{T,Vector{Int}}[]
+  
+  y = deepcopy(x.elem.sdata)
+  while !iszero(y)
+    t = Singular.trailing_term(y)
+    exp = leading_exponent_vector(t)
+    can = canonical_basis_elem(U, exp)
+
+    coeff = coefficient_ring(U)(trailing_coefficient(t) // trailing_coefficient(can))
+    push!(rep, (coeff, exp))
+    y = submul!(y, can, coeff)
+  end
+end
+
 ###############################################################################
 #
 #   Internal functions
