@@ -62,7 +62,7 @@ function bar_involution(U::QuantumGroup)
     for term in terms(rel)
       exp = leading_exponent_vector(term)
       if exp[cvx[m]] != 0
-        coeff = inv(leading_coefficient(term))
+        coeff = bar!(coeff, inv((leading_coefficient(term))))
         continue
       end
 
