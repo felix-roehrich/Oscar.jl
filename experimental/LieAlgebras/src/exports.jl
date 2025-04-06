@@ -12,10 +12,16 @@ export LieAlgebraModuleHom
 export LieSubalgebra
 export LinearLieAlgebra, LinearLieAlgebraElem
 
+export Crystal
+export LSPathModel, LSPathModelElem
+export LusztigDatum
+export PathModel
+
 export abelian_lie_algebra
 export abstract_module
 export adjoint_matrix
 export any_non_ad_nilpotent_element
+export adapted_string
 export apply_braid_move!
 export base_lie_algebra
 export bracket
@@ -29,6 +35,7 @@ export demazure_operator
 export derived_algebra
 export dim_of_simple_module
 export dominant_character
+export dominant_path
 export dominant_weights
 export engel_subalgebra
 export exterior_power
@@ -42,6 +49,9 @@ export is_self_normalizing
 export killing_matrix
 export lie_algebra
 export lower_central_series
+export ls_path_model
+export ls_string
+export lusztig_datum
 export matrix_repr_basis
 export parabolic_subgroup
 export parabolic_subgroup_with_projection
