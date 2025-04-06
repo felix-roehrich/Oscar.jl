@@ -8,6 +8,7 @@ using Oscar:
   GAPWrap,
   IntegerUnion,
   MapHeader,
+  rmul!,
   set_root_system_type!
 
 import Random
@@ -31,6 +32,7 @@ import ..Oscar:
   canonical_projection,
   canonical_projections,
   cartan_matrix,
+  cartan_matrix_inv,
   center,
   centralizer,
   change_base_ring,
@@ -61,6 +63,7 @@ import ..Oscar:
   inner_direct_product,
   inv,
   is_abelian,
+  is_dominant,
   is_isomorphism,
   is_nilpotent,
   is_perfect,
@@ -83,6 +86,7 @@ import ..Oscar:
   symbols,
   symmetric_power,
   tensor_product,
+  weyl_group,
   zero_map,
   ⊕,
   ⊗
@@ -110,6 +114,10 @@ include("Util.jl")
 include("CoxeterGroup.jl")
 include("DynkinDiagram.jl")
 include("WeylGroup.jl")
+
+include("Crystal.jl")
+include("LusztigDatum.jl")
+include("PathModel.jl")
 
 include("LieAlgebra.jl")
 include("AbstractLieAlgebra.jl")
