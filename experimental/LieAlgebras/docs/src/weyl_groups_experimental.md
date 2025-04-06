@@ -11,6 +11,11 @@ This page is an addition to the documentation of [Weyl groups](@ref) with the ad
 # Exchange lemma and Braid moves
 
 ```@docs
+<<<<<<< HEAD
+=======
+exchange!(::WeylGroup, ::Vector{UInt8}, ::UInt8)
+exchange!(::WeylGroup, ::UInt8, ::Vector{UInt8})
+>>>>>>> 1be09bd06 (quantum groups)
 braid_moves(::WeylGroup, ::Vector{UInt8}, ::Vector{UInt8})
 apply_braid_move!(::Vector{UInt8}, ::Tuple{Int, Int, Int})
 ```
