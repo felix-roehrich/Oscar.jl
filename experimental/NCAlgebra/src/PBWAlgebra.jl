@@ -26,7 +26,7 @@ end
 
 function pbw_algebra(R::MPolyRing{T}, rels::Matrix{MPoly{T}}) where {T<:FieldElem}
   N = ngens(R)
-  rels2 = [rels[i, j] for i in 1:N, j in i+1:N]
+  rels2 = [rels[i, j] for i in 1:N, j in (i + 1):N]
   return PBWAlg(R, rels2)
 end
 
@@ -112,7 +112,9 @@ function add!(z::PBWAlgebraElem, x::PBWAlgebraElem, y::PBWAlgebraElem)
   return z
 end
 
-function mul!(z::PBWAlgebraElem{T}, x::PBWAlgebraElem{T}, y::PBWAlgebraElem{T}) where {T<:FieldElem}
+function mul!(
+  z::PBWAlgebraElem{T}, x::PBWAlgebraElem{T}, y::PBWAlgebraElem{T}
+) where {T<:FieldElem}
   _mul_p_p!(parent(z), z.poly, x.poly, y.poly)
   return z
 end
@@ -120,6 +122,10 @@ end
 function mul!(z::PBWAlgebraElem{T}, x::PBWAlgebraElem{T}, y::T) where {T<:FieldElem}
   z.poly = mul!(z.poly, x.poly, y)
   return z
+end
+
+function neg!(z::PBWAlgebraElem{T}, x::PBWAlgebraElem{T}) where {T}
+  z.poly = neg!(z.poly, x.poly)
 end
 
 function pow!(z::PBWAlgebraElem, x::PBWAlgebraElem, n::Int)
@@ -156,12 +162,22 @@ function sub!(z::PBWAlgebraElem, x::PBWAlgebraElem, y::PBWAlgebraElem)
   return z
 end
 
+function submul!(x::PBWAlgebraElem{T}, y::PBWAlgebraElem{T}, a::T) where {T}
+  x.poly = submul!(x.poly, y.poly, a)
+  return x
+end
+
 function swap!(x::PBWAlgebraElem{T}, y::PBWAlgebraElem{T}) where {T<:FieldElem}
   x.poly, y.poly = y.poly, x.poly
   return x
 end
 
 ###############################################################################
+
+function Base.:(==)(x::PBWAlgebraElem, y::PBWAlgebraElem)
+  @req parent(x) == parent(y) "parent mismatch"
+  return x.poly == y.poly
+end
 
 function Base.:+(x::PBWAlgebraElem, y::PBWAlgebraElem)
   @req parent(x) == parent(y) "parent mismatch"
@@ -227,12 +243,12 @@ function coeff(x::PBWAlgebraElem, i::Int)
   return coeff(x.poly, i)
 end
 
-function leading_exponent_vector(x::PBWAlgebraElem)
-  return leading_exponent_vector(x.poly)
+function setcoeff!(x::PBWAlgebraElem{T}, i::Int, a::T) where {T}
+  return setcoeff!(x.poly, i, a)
 end
 
-function tail(x::PBWAlgebraElem)
-  return PBWAlgebraElem(parent(x), tail(x.poly))
+function leading_exponent_vector(x::PBWAlgebraElem)
+  return leading_exponent_vector(x.poly)
 end
 
 ###############################################################################
@@ -257,7 +273,12 @@ function _mul_p_p!(A::PBWAlg{T}, z::MPoly{T}, x::MPoly{T}, y::MPoly{T}) where {T
   res = zero(z)
   for i in 1:length(x)
     for j in 1:length(y)
-      _mul_m_m!(A, res, AbstractAlgebra.exponent_vector_ref(x, i), AbstractAlgebra.exponent_vector_ref(y, j))
+      _mul_m_m!(
+        A,
+        res,
+        AbstractAlgebra.exponent_vector_ref(x, i),
+        AbstractAlgebra.exponent_vector_ref(y, j),
+      )
       mul!(res, coeff(x, i))
       mul!(res, coeff(y, j))
       add!(z, res)
@@ -265,7 +286,9 @@ function _mul_p_p!(A::PBWAlg{T}, z::MPoly{T}, x::MPoly{T}, y::MPoly{T}) where {T
   end
 end
 
-function _mul_p_m!(A::PBWAlg{T}, z::MPoly{T}, x::MPoly{T}, y::AbstractVector{Int}) where {T<:FieldElem}
+function _mul_p_m!(
+  A::PBWAlg{T}, z::MPoly{T}, x::MPoly{T}, y::AbstractVector{Int}
+) where {T<:FieldElem}
   z = zero!(z)
   res = zero(z)
   for i in 1:length(x)
@@ -334,7 +357,9 @@ function _mul_m_m!(A::PBWAlg, z::MPoly, x::AbstractVector{Int}, y::AbstractVecto
 end
 
 # i > j
-function _mul_gens(A::PBWAlg{T}, z::MPoly, i::Int, n::Int, j::Int, m::Int) where {T<:FieldElem}
+function _mul_gens(
+  A::PBWAlg{T}, z::MPoly, i::Int, n::Int, j::Int, m::Int
+) where {T<:FieldElem}
   ind = _linear_index(A, j, i)
 
   # quasi-commutative case
@@ -362,7 +387,7 @@ function _mul_gens(A::PBWAlg{T}, z::MPoly, i::Int, n::Int, j::Int, m::Int) where
     newSize = reqSize + pbwAlg_multGrow
     mult = Matrix{MPoly{T}}(undef, newSize, newSize)
     for k in 1:curSize
-      copyto!(mult, (k-1)*newSize+1, A.mult[ind], (k-1)*curSize+1, curSize)
+      copyto!(mult, (k - 1) * newSize + 1, A.mult[ind], (k - 1) * curSize + 1, curSize)
     end
     A.mult[ind] = mult
   end
@@ -372,7 +397,7 @@ function _mul_gens(A::PBWAlg{T}, z::MPoly, i::Int, n::Int, j::Int, m::Int) where
   for k in 2:n
     if !isassigned(A.mult[ind], k, 1)
       A.mult[ind][k, 1] = zero(A.R)
-      _mul_m_p!(A, A.mult[ind][k, 1], mon, A.mult[ind][k-1, 1])
+      _mul_m_p!(A, A.mult[ind][k, 1], mon, A.mult[ind][k - 1, 1])
     end
   end
 
@@ -380,9 +405,200 @@ function _mul_gens(A::PBWAlg{T}, z::MPoly, i::Int, n::Int, j::Int, m::Int) where
   for k in 2:m
     if !isassigned(A.mult[ind], n, k)
       A.mult[ind][n, k] = zero(A.R)
-      _mul_p_m!(A, A.mult[ind][n, k], A.mult[ind][n, k-1], mon)
+      _mul_p_m!(A, A.mult[ind][n, k], A.mult[ind][n, k - 1], mon)
     end
   end
 
   return add!(z, A.mult[ind][n, m])
 end
+
+###############################################################################
+#
+#   division
+#
+###############################################################################
+
+function monomial_lcm!(z::Vector{Int}, x::AbstractVector{Int}, y::AbstractVector{Int})
+  for i in 1:length(z)
+    z[i] = max(x[i], y[i])
+  end
+end
+
+function monomial_divides(
+  z::AbstractVector{Int}, x::AbstractVector{Int}, y::AbstractVector{Int}
+)
+  for i in 1:length(x)
+    z[i] = x[i] - y[i]
+    if z[i] < 0
+      return false
+    end
+  end
+  return true
+end
+
+function divexact!(x::PBWAlgebraElem{T}, a::T) where {T}
+  for i in 1:length(x)
+    AbstractAlgebra.divexact!(coeff(x, i), a)
+  end
+  return x
+end
+
+function rem(x::PBWAlgebraElem{T}, y::PBWAlgebraElem{T}) where {T}
+  return rem!(zero(x), x, [y])
+end
+
+function rem!(
+  r::PBWAlgebraElem{T}, x::PBWAlgebraElem{T}, yi::Vector{PBWAlgebraElem{T}}
+) where {T}
+  A = parent(x)
+  m = one(x)
+  q = zero(x)
+
+  r = set!(r, x)
+  em = AbstractAlgebra.exponent_vector_ref(m.poly, 1)
+
+  i = 1
+  while i <= length(r) && !iszero(r)
+    j = 1
+    while j <= length(yi) &&
+      !monomial_divides(
+        em,
+        AbstractAlgebra.exponent_vector_ref(r.poly, i),
+        AbstractAlgebra.exponent_vector_ref(yi[j].poly, 1),
+      )
+      j += 1
+    end
+    if j > length(yi)
+      i += 1
+      continue
+    end
+
+    AbstractAlgebra.setcoeff!(m.poly, 1, coeff(r, i))
+    _mul_m_p!(A, q.poly, em, yi[j].poly)
+    AbstractAlgebra.divexact!(coeff(m, 1), coeff(q, 1))
+    submul!(r, q, coeff(m, 1))
+  end
+
+  return r
+end
+
+###############################################################################
+#
+#   Groebner basis
+#
+###############################################################################
+
+struct PBWAlgebraIdeal{T} <: AbstractAlgebra.Ideal{T}
+  gens::Vector{PBWAlgebraElem{T}}
+  gb::Vector{PBWAlgebraElem{T}}
+end
+
+function Base.show(io::IO, I::PBWAlgebraIdeal)
+  io = pretty(io)
+  print(io, LowercaseOff(), "PBW algebra ideal")
+end
+
+function s_polynomial(x::PBWAlgebraElem{T}, y::PBWAlgebraElem{T}) where {T}
+  A = parent(x)
+
+  z = zeros(Int, ngens(A))
+  monomial_lcm!(
+    z, AbstractAlgebra.exponent_vector_ref(x.poly, 1),
+    AbstractAlgebra.exponent_vector_ref(y.poly, 1),
+  )
+
+  px = zero(x.poly)
+  _mul_m_p!(A, px, z - AbstractAlgebra.exponent_vector_ref(x.poly, 1), x.poly)
+
+  py = zero(y.poly)
+  _mul_m_p!(A, py, z - AbstractAlgebra.exponent_vector_ref(y.poly, 1), y.poly)
+
+  c = deepcopy(coeff(px, 1))
+  d = gcd(coeff(px, 1), coeff(py, 1))
+
+  px = AbstractAlgebra.divexact!(mul!(px, coeff(py, 1)), d)
+  py = AbstractAlgebra.divexact!(mul!(py, c), d)
+
+  return PBWAlgebraElem(A, sub!(px, py))
+end
+
+function short_s_polynomial(x::PBWAlgebraElem{T}, y::PBWAlgebraElem{T}) where {T}
+  z = zeros(Int, ngens(parent(x)))
+  monomial_lcm!(
+    z, AbstractAlgebra.exponent_vector_ref(x.poly, 1),
+    AbstractAlgebra.exponent_vector_ref(y.poly, 1),
+  )
+end
+
+function groebner_basis(I::PBWAlgebraIdeal)
+  if !isempty(I.gb)
+    return I.gb
+  end
+
+  G = deepcopy(I.gens)
+  r = zero(I.gens[1])
+  ok = false
+  while !ok
+    ok = true
+    for i in 1:length(G), j in (i + 1):length(G)
+      s = s_polynomial(G[i], G[j])
+      rem!(r, s, G)
+      if !iszero(r)
+        ok = false
+        push!(G, divexact!(deepcopy(r), coeff(r, 1)))
+      end
+    end
+  end
+
+  #I.gb = G
+  return G
+end
+
+#=
+function groebner_basis(I::PBWAlgebraIdeal)
+  struct _lobject
+    x::PBWAlgebraElem
+    y::PBWAlgebraElem
+  end
+
+  struct _strat
+    P::Any
+    enterS::Any
+    Ll::Int
+    L::Vector{_lobject}
+    Interpt::Bool
+    red
+    tail
+  end
+
+  strat = _strat()
+  # init
+  strat.red = function(l::_lobject, strat::_strat)
+    j = 1
+    if j > strat.ls
+      return 0
+    end
+    if is_divisible(strat.S[j], l.p)
+      l.p = reduce_s_polynomial(strat.S[j], l.p)
+    end
+    if l.p
+      l.lcm = zero!(l.lcm)
+      return 0
+    end
+  end
+
+  while !isempty(strat.L)
+    strat.P = pop!(strat.L) # strat.L[strat.Ll]
+    strat.red(strat.P, strat)
+
+    if !iszero(strat.P)
+      if next(strat.P.p) == strat.tail
+      end
+
+      if strat.P.p == strat.tail
+        strat.red(strat.P, strat)
+      end
+    end
+  end
+end
+=#
