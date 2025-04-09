@@ -174,6 +174,23 @@ function Base.:(<)(p::LSPathModelElem, q::LSPathModelElem)
   return false
 end
 
+function opp_less(p::LSPathModelElem, q::LSPathModelElem)
+  for i in 1:min(length(p.s), length(q.s))
+    if p.s[end + 1 - i].w > q.s[end + 1 - i].w
+      return true
+    elseif p.s[end + 1 - i].w == q.s[end + 1 - i].w
+      if p.s[end + 1 - i].t < q.s[end + 1 - i].t
+        return true
+      elseif p.s[end + 1 - i].t > q.s[end + 1 - i].t
+        return false
+      end
+    else
+      return false
+    end
+  end
+  return false
+end
+
 function Base.deepcopy_internal(p::LSPathModelElem, dict::IdDict)
   if haskey(dict, p)
     return dict[p]
