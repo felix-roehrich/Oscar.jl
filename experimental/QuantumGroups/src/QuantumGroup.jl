@@ -6,9 +6,18 @@ function Nemo.exponent_vector!(
   return z
 end
 
+function bar!(x::LaurentPolyWrap)
+  return bar!(x, x)
+end
+
+function bar!(x::FracFieldElem{T}) where {T<:LaurentPolyWrap}
+  return bar!(x, x)
+end
+
 function bar!(z::LaurentPolyWrap, x::LaurentPolyWrap)
+  d = degree(x.poly)
   reverse!(z.poly, x.poly, length(x.poly))
-  z.mindeg = -degree(x.poly) - x.mindeg
+  z.mindeg = -d - x.mindeg
   return z
 end
 
@@ -88,6 +97,7 @@ function quantum_parameter(U::QuantumGroup, i::Int)
   return U.qi[i]
 end
 
+#=
 function expressify(x::QuantumGroupElem; context=nothing)
   expr = Expr(:call, :+)
   for t in terms(x.elem)
@@ -110,6 +120,11 @@ function expressify(x::QuantumGroupElem; context=nothing)
 end
 
 @enable_all_show_via_expressify QuantumGroupElem
+=#
+
+function Base.show(io::IO, x::QuantumGroupElem)
+  show(io, x.elem)
+end
 
 function Base.deepcopy_internal(x::QuantumGroupElem, dict::IdDict)
   return get!(dict, x, QuantumGroupElem(parent(x), deepcopy_internal(x.elem, dict)))
@@ -293,7 +308,19 @@ end
 function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
   A, q = laurent_polynomial_ring(ZZ, "q")
   QA = fraction_field(A)
-  P, theta = polynomial_ring(QA, :F => 1:length(w0))
+  vars = Symbol[]
+  for i in 1:length(w0)
+    push!(vars, Symbol("F$i"))
+  end
+  for i in 1:length(w0)
+    push!(vars, Symbol("E$i"))
+  end
+  for i in 1:rank(R)
+    push!(vars, Symbol("[K$i; 1]"))
+    push!(vars, Symbol("K$i"))
+  end
+
+  P, theta = polynomial_ring(QA, vars)
 
   # for now we rely on the QuaGroup package to compute the PBW relations
   GAP.Packages.load("QuaGroup")
@@ -318,24 +345,61 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
   GAP.Globals.SetSimpleSystemNF(gapR, gapSim)
   GAP.Globals.SetBilinearFormMatNF(gapR, gapBil)
   GAP.Globals.SetTypeOfRootSystem(
-    gapR, collect(Iterators.flatmap(t -> GAP.GapObj.(t), root_system_type(R)))
+    gapR, GAP.GapObj(collect(Iterators.flatmap(t -> GAP.GapObj.(t), root_system_type(R))))
   )
   GAP.Globals.SetLongestWeylWord(gapR, GAP.GapObj(GAP.GapObj.(w0)))
 
   gapU = GAP.Globals.QuantizedUEA(gapR)
-  gapF = GAP.Globals.GeneratorsOfAlgebra(gapU)
+  gapFamily = GAP.Globals.ElementsFamily(GAP.Globals.FamilyObj(gapU))
+
+  npos = number_of_positive_roots(R)
+  gapGens = GAP.GapObj[]
+  for i in 1:npos
+    gapGens = push!(
+      gapGens, Oscar.GAPWrap.ObjByExtRep(gapFamily, GAP.GapObj([[i, 1], 1]; recursive=true))
+    )
+  end
+  for i in (npos + rank(R) + 1):(2 * npos + rank(R))
+    gapGens = push!(
+      gapGens, Oscar.GAPWrap.ObjByExtRep(gapFamily, GAP.GapObj([[i, 1], 1]; recursive=true))
+    )
+  end
+  for i in (npos + 1):(npos + rank(R))
+    gapGens = push!(
+      gapGens,
+      Oscar.GAPWrap.ObjByExtRep(gapFamily, GAP.GapObj([[[i, 0], 1], 1]; recursive=true)),
+    )
+    gapGens = push!(
+      gapGens,
+      Oscar.GAPWrap.ObjByExtRep(gapFamily, GAP.GapObj([[[i, 1], 0], 1]; recursive=true)),
+    )
+  end
 
   # set rels
-  npos = number_of_positive_roots(R)
-  rels = zero_matrix(P, npos, npos)
-
+  rels = zero_matrix(P, length(vars), length(vars))
   term = one(P)
-  for i in 1:npos, j in (i + 1):npos
-    rep = Oscar.GAPWrap.ExtRepOfObj(gapF[j] * gapF[i])
+  for i in 1:length(vars), j in (i + 1):length(vars)
+    rep = Oscar.GAPWrap.ExtRepOfObj(gapGens[j] * gapGens[i])
     for n in 1:2:length(rep)
       for m in 1:2:length(rep[n])
-        for _ in 1:rep[n][m + 1]
-          term = mul!(term, theta[rep[n][m]])
+        if !GAP.Globals.IsList(rep[n][m])
+          if rep[n][m] <= npos # F
+            for _ in 1:rep[n][m + 1]
+              term = mul!(term, theta[rep[n][m]])
+            end
+          else # E
+            for _ in 1:rep[n][m + 1]
+              term = mul!(term, theta[rep[n][m] - rank(R)])
+            end
+          end
+        else
+          nk = 2*(rep[n][m][1]-npos-1)+2*npos+1
+          for _ in 1:rep[n][m][2]
+            term = mul!(term, theta[nk+1])
+          end
+          for _ in 1:rep[n][m + 1]
+            term = mul!(term, theta[nk])
+          end
         end
         term = mul!(term, inv(quantum_factorial(rep[n][m + 1], QA(q))))
       end
@@ -347,7 +411,21 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
       rels[i, j] = addmul!(rels[i, j], term, coeff)
       term = one!(term)
     end
+    println(rels[i, j])
+    println(gapGens[j] * gapGens[i])
+    println("")
   end
+
+  #=
+  for i in 1:npos, j in (i + 1):npos
+    rel = deepcopy(rels[i, j])
+    for k in 1:length(rel)
+      bar!(coeff(rel, k))
+      reverse!(AbstractAlgebra.exponent_vector_ref(rel, k))
+    end
+    rels[end + 1 - j, end + 1 - i] = rel
+  end
+  =#
 
   cvx = zeros(Int, npos)
   for i in 1:npos

@@ -176,6 +176,14 @@ function Crystal.eps(b::CrystalTensorProductElem, i::Int)
   )
 end
 
+function Crystal.weight(b::CrystalTensorProductElem)
+  return sum(Crystal.weight(b.b[i]) for i in 1:length(b.b))
+end
+
 function tensor_product(b1::AbstractCrystalElem, b2::AbstractCrystalElem)
   return CrystalTensorProductElem([b1, b2], CrystalTensorProduct())
+end
+
+function Base.:(<)(b1::CrystalTensorProductElem, b2::CrystalTensorProductElem)
+  return b1.b[1] < b2.b[1] || (b1.b[1] == b2.b[1] && b1.b[2] < b2.b[2])
 end
