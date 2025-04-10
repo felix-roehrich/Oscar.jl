@@ -78,6 +78,10 @@ function chevalley_gens(U::QuantumGroup)
   return [gen(U, U.cvx[i]) for i in 1:rank(root_system(U))]
 end
 
+function chevalley_gen(U::QuantumGroup, i::Int)
+  return gen(U, U.cvx[i])
+end
+
 function ngens(U::QuantumGroup)
   return ngens(U.alg)
 end
@@ -383,19 +387,19 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
     for n in 1:2:length(rep)
       for m in 1:2:length(rep[n])
         if !GAP.Globals.IsList(rep[n][m])
-          if rep[n][m] <= npos # F
+          if rep[n][m] <= npos
             for _ in 1:rep[n][m + 1]
               term = mul!(term, theta[rep[n][m]])
             end
-          else # E
+          else
             for _ in 1:rep[n][m + 1]
               term = mul!(term, theta[rep[n][m] - rank(R)])
             end
           end
         else
-          nk = 2*(rep[n][m][1]-npos-1)+2*npos+1
+          nk = 2 * (rep[n][m][1] - npos - 1) + 2 * npos + 1
           for _ in 1:rep[n][m][2]
-            term = mul!(term, theta[nk+1])
+            term = mul!(term, theta[nk + 1])
           end
           for _ in 1:rep[n][m + 1]
             term = mul!(term, theta[nk])
@@ -436,7 +440,7 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
     cvx[beta] = i
   end
 
-  alg, _ = pbw_algebra(P, rels, lex(theta))
+  alg, _ = pbw_algebra(P, rels, degrevlex(theta))
   return QuantumGroup(
     A,
     alg,
