@@ -446,6 +446,7 @@ function pbw_algebra(r::MPolyRing{T}, rel, ord::MonomialOrdering; check::Bool = 
   S = elem_type(scr)
   sr, _ = Singular.polynomial_ring(scr, symbols(r); ordering = singular(ord), cached = false)
   sr::Singular.PolyRing{S}
+  println(sr)
   s, gs, srel = _g_algebra_internal(sr, rel)
   if check && !is_zero(Singular.LibNctools.ndcond(s))
     error("PBW-basis condition not satisfied")

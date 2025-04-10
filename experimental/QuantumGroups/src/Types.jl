@@ -21,3 +21,13 @@ end
 struct QuantumGroupHomomorphism
   img::Vector{QuantumGroupElem}
 end
+
+struct QuantumGroupModule{T} <: AbstractAlgebra.Module{T}
+  U::QuantumGroup{T}
+  I::Oscar.PBWAlgIdeal
+end
+
+struct QuantumGroupModuleElem{T} <: AbstractAlgebra.ModuleElem{T}
+  parent::QuantumGroupModule{T}
+  elem::QuantumGroupElem{T}
+end

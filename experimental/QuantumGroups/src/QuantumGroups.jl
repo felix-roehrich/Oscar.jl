@@ -14,13 +14,14 @@ import ..Oscar:
   coeff, coefficient_ring, expressify, gen, gens, leading_coefficient,
   leading_exponent_vector, leading_monomial, length, ngens, parent, setcoeff!,
   trailing_coefficient
-import ..Oscar: weyl_group
+import ..Oscar: weyl_group, simple_module
 
 include("exports.jl")
 include("Types.jl")
 
 include("CanonicalBasis.jl")
 include("Homomorphism.jl")
+include("Module.jl")
 include("QuantumGroup.jl")
 
 end
