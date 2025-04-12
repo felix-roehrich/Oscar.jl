@@ -1,17 +1,23 @@
 const pbwAlg_multGrow = 5
 
+@enum NCType begin
+  NCTypeLie
+  NCTypeSkew
+  NCTypeComm
+end
+
 struct PBWAlg{T<:FieldElem} <: NCRing
   R::MPolyRing{T}
-  rels::Vector{MPoly{T}}
-  mult::Vector{Matrix{MPoly{T}}}
+  rels::Vector{MPolyRingElem{T}}
+  mult::Vector{Matrix{MPolyRingElem{T}}}
 
-  function PBWAlg(R::MPolyRing{T}, rels::Vector{MPoly{T}}) where {T<:FieldElem}
-    mult = Vector{Matrix{MPoly{T}}}(undef, length(rels))
+  function PBWAlg(R::MPolyRing{T}, rels::Vector{MPolyRingElem{T}}) where {T<:FieldElem}
+    mult = Vector{Matrix{MPolyRingElem{T}}}(undef, length(rels))
     for i in 1:length(rels)
       if length(rels[i]) == 1 # quasi-commuative case
-        mult[i] = Matrix{MPoly{T}}(undef, 1, 1)
+        mult[i] = Matrix{MPolyRingElem{T}}(undef, 1, 1)
       else
-        mult[i] = Matrix{MPoly{T}}(undef, pbwAlg_multGrow, pbwAlg_multGrow)
+        mult[i] = Matrix{MPolyRingElem{T}}(undef, pbwAlg_multGrow, pbwAlg_multGrow)
       end
       mult[i][1, 1] = rels[i]
     end
@@ -20,11 +26,11 @@ struct PBWAlg{T<:FieldElem} <: NCRing
   end
 end
 
-function pbw_algebra(R::MPolyRing{T}, rels::Vector{MPoly{T}}) where {T<:FieldElem}
+function pbw_algebra(R::MPolyRing{T}, rels::Vector{MPolyRingElem{T}}) where {T<:FieldElem}
   return PBWAlg(R, rels)
 end
 
-function pbw_algebra(R::MPolyRing{T}, rels::Matrix{MPoly{T}}) where {T<:FieldElem}
+function pbw_algebra(R::MPolyRing{T}, rels::Matrix{MPolyRingElem{T}}) where {T<:FieldElem}
   N = ngens(R)
   rels2 = [rels[i, j] for i in 1:N, j in (i + 1):N]
   return PBWAlg(R, rels2)
@@ -36,7 +42,7 @@ end
 
 mutable struct PBWAlgebraElem{T<:FieldElem}
   parent::PBWAlg{T}
-  poly::MPoly{T}
+  poly::MPolyRingElem{T}
 end
 
 function elem_type(::Type{PBWAlg{T}}) where {T}
@@ -45,6 +51,25 @@ end
 
 function parent_type(::Type{PBWAlgebraElem{T}}) where {T}
   return PBWAlgebraElem{T}
+end
+
+function is_admissible_ordering(
+  vars::Vector{MPolyRingElem{T}}, rels::Vector{MPolyRingElem{T}}
+) where {T}
+  N = length(vars)
+  m = Vector{Int}(undef, N)
+  lead = zeros(Int, N)
+  for i in 1:N, j in (i + 1):N
+    k = _linear_index(vars, i, j)
+    lead[i], lead[j] = 1, 1
+    unpack_monomial!(m, rels[k], 1)
+    if monomial_cmp(parent(rels[k]), m, lead) != 0
+      return false, (i, j)
+    end
+    lead[i], lead[j] = 0, 0
+  end
+
+  return true, (0, 0)
 end
 
 ###############################################################################
@@ -258,7 +283,9 @@ end
 ###############################################################################
 
 # multiply polynomials x and y and store the result in z
-function _mul_p_p!(A::PBWAlg{T}, z::MPoly{T}, x::MPoly{T}, y::MPoly{T}) where {T<:FieldElem}
+function _mul_p_p!(
+  A::PBWAlg{T}, z::MPolyRingElem{T}, x::MPolyRingElem{T}, y::MPolyRingElem{T}
+) where {T<:FieldElem}
   if is_one(x)
     z = zero!(z)
     add!(z, y)
@@ -309,7 +336,9 @@ function _mul_m_p!(A::PBWAlg, z::MPoly, x::AbstractVector{Int}, y::MPoly)
 end
 
 # multiply monomials x and z and store result in z
-function _mul_m_m!(A::PBWAlg, z::MPoly, x::AbstractVector{Int}, y::AbstractVector{Int})
+function _mul_m_m!(
+  A::PBWAlg, z::MPolyRingElem, x::AbstractVector{Int}, y::AbstractVector{Int}
+)
   xl = findlast(!iszero, x)
   if isnothing(xl)
     z = one!(z)
@@ -344,21 +373,21 @@ function _mul_m_m!(A::PBWAlg, z::MPoly, x::AbstractVector{Int}, y::AbstractVecto
     copyto!(mon, yf, y, yf, length(y) - yf + 1)
     _mul_p_m!(A, tmp, z, mon)
   else
-    AbstractAlgebra.swap!(tmp, z)
+    swap!(tmp, z)
   end
   if !isnothing(xl)
     zero!(mon)
     copyto!(mon, 1, x, 1, xl)
     _mul_m_p!(A, z, mon, tmp)
   else
-    AbstractAlgebra.swap!(z, tmp)
+    swap!(z, tmp)
   end
   return z
 end
 
 # i > j
 function _mul_gens(
-  A::PBWAlg{T}, z::MPoly, i::Int, n::Int, j::Int, m::Int
+  A::PBWAlg{T}, z::MPolyRingElem{T}, i::Int, n::Int, j::Int, m::Int
 ) where {T<:FieldElem}
   ind = _linear_index(A, j, i)
 
@@ -385,7 +414,7 @@ function _mul_gens(
     end
   else
     newSize = reqSize + pbwAlg_multGrow
-    mult = Matrix{MPoly{T}}(undef, newSize, newSize)
+    mult = Matrix{MPolyRingElem{T}}(undef, newSize, newSize)
     for k in 1:curSize
       copyto!(mult, (k - 1) * newSize + 1, A.mult[ind], (k - 1) * curSize + 1, curSize)
     end
