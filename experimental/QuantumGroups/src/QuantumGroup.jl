@@ -316,13 +316,13 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
   for i in 1:length(w0)
     push!(vars, Symbol("F$i"))
   end
-  for i in 1:length(w0)
-    push!(vars, Symbol("E$i"))
-  end
   for i in 1:rank(R)
     push!(vars, Symbol("[K$i; 1]"))
     push!(vars, Symbol("K$i"))
   end
+  #for i in length(w0):-1:1
+  #  push!(vars, Symbol("E$i"))
+  #end
 
   P, theta = polynomial_ring(QA, vars)
 
@@ -363,11 +363,6 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
       gapGens, Oscar.GAPWrap.ObjByExtRep(gapFamily, GAP.GapObj([[i, 1], 1]; recursive=true))
     )
   end
-  for i in (npos + rank(R) + 1):(2 * npos + rank(R))
-    gapGens = push!(
-      gapGens, Oscar.GAPWrap.ObjByExtRep(gapFamily, GAP.GapObj([[i, 1], 1]; recursive=true))
-    )
-  end
   for i in (npos + 1):(npos + rank(R))
     gapGens = push!(
       gapGens,
@@ -378,11 +373,16 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
       Oscar.GAPWrap.ObjByExtRep(gapFamily, GAP.GapObj([[[i, 1], 0], 1]; recursive=true)),
     )
   end
+  #for i in (2 * npos + rank(R)):-1:(npos + rank(R) + 1)
+  #  gapGens = push!(
+  #    gapGens, Oscar.GAPWrap.ObjByExtRep(gapFamily, GAP.GapObj([[i, 1], 1]; recursive=true))
+  #  )
+  #end
 
   # set rels
   rels = zero_matrix(P, length(vars), length(vars))
   term = one(P)
-  for i in 1:length(vars), j in (i + 1):length(vars)
+  for i in 1:(npos + 2 * rank(R)), j in (i + 1):length(vars)
     rep = Oscar.GAPWrap.ExtRepOfObj(gapGens[j] * gapGens[i])
     for n in 1:2:length(rep)
       for m in 1:2:length(rep[n])
@@ -393,11 +393,11 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
             end
           else
             for _ in 1:rep[n][m + 1]
-              term = mul!(term, theta[rep[n][m] - rank(R)])
+              term = mul!(term, theta[end + 1 - rep[n][m] + npos + rank(R)])
             end
           end
         else
-          nk = 2 * (rep[n][m][1] - npos - 1) + 2 * npos + 1
+          nk = 2 * (rep[n][m][1] - npos - 1) + npos + 1
           for _ in 1:rep[n][m][2]
             term = mul!(term, theta[nk + 1])
           end
@@ -415,9 +415,6 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
       rels[i, j] = addmul!(rels[i, j], term, coeff)
       term = one!(term)
     end
-    println(rels[i, j])
-    println(gapGens[j] * gapGens[i])
-    println("")
   end
 
   #=
@@ -425,7 +422,7 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
     rel = deepcopy(rels[i, j])
     for k in 1:length(rel)
       bar!(coeff(rel, k))
-      reverse!(AbstractAlgebra.exponent_vector_ref(rel, k))
+      set_exponent_vector!(rel, k, reverse!(exponent_vector(rel, k)))
     end
     rels[end + 1 - j, end + 1 - i] = rel
   end
@@ -440,7 +437,16 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
     cvx[beta] = i
   end
 
-  alg, _ = pbw_algebra(P, rels, degrevlex(theta))
+  wt = Vector{Int}(undef, npos+2*rank(R))
+  for i in 1:npos
+    wt[cvx[i]] = Int(height(positive_root(R, i)))
+    #wt[end+1-cvx[i]] = Int(height(positive_root(R, i)))
+  end
+  for i in 1:2*rank(R)
+    wt[npos+i] = 1
+  end
+
+  alg, _ = pbw_algebra(P, rels, wdeglex(theta, wt))
   return QuantumGroup(
     A,
     alg,

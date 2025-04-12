@@ -390,10 +390,6 @@ function _g_algebra_internal(sr::Singular.PolyRing, rel)
   D = Singular.zero_matrix(sr, n, n)
   for i in 1:n-1, j in i+1:n
     t = _unsafe_coerce(sr, rel[i,j], false)
-    println(t)
-    println("$i, $j")
-    println(AbstractAlgebra.leading_monomial(t))
-    println("")
     AbstractAlgebra.leading_monomial(t) == gen(sr, i)*gen(sr, j) ||
                               error("incorrect leading monomial in relations")
     C[i,j] = sr(AbstractAlgebra.leading_coefficient(t))
@@ -444,9 +440,22 @@ function pbw_algebra(r::MPolyRing{T}, rel, ord::MonomialOrdering; check::Bool = 
   nrows(rel) == n && ncols(rel) == n || error("oops")
   scr = singular_coeff_ring(coefficient_ring(r))
   S = elem_type(scr)
+  o = Singular.ordering_M(
+    [
+      1 2 1 1 1 1 1 1 2 1
+      1 0 0 0 0 0 0 0 0 0
+      0 1 0 0 0 0 0 0 0 0
+      0 0 1 0 0 0 0 0 0 0
+      0 0 0 1 0 0 0 0 0 0
+      0 0 0 0 1 0 0 0 0 0
+      0 0 0 0 0 1 0 0 0 0
+      0 0 0 0 0 0 1 0 0 0
+      0 0 0 0 0 0 0 1 0 0
+      0 0 0 0 0 0 0 0 1 0
+    ],
+  )
   sr, _ = Singular.polynomial_ring(scr, symbols(r); ordering = singular(ord), cached = false)
   sr::Singular.PolyRing{S}
-  println(sr)
   s, gs, srel = _g_algebra_internal(sr, rel)
   if check && !is_zero(Singular.LibNctools.ndcond(s))
     error("PBW-basis condition not satisfied")
