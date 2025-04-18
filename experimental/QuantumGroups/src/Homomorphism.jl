@@ -23,7 +23,7 @@ function bar_involution(U::QuantumGroup)
   cvx = zeros(Int, npos)
   for i in 1:npos
     beta = U.w0[i]
-    for j in (i-1):-1:1
+    for j in (i - 1):-1:1
       beta = refl[U.w0[j], beta]
     end
     cvx[beta] = i
@@ -35,7 +35,7 @@ function bar_involution(U::QuantumGroup)
   end
 
   # we construct the images of the PBW generators inductively by height
-  for m in (nsim+1):npos
+  for m in (nsim + 1):npos
     n = 0
     s = 0
     # find positive root with smaller height
@@ -124,11 +124,11 @@ end
 function braid_automorphism(U::QuantumGroup, i::Int)
   F = chevalley_gens(U)
   img0 = QuantumGroupElem[]
-  for j in 1:i-1
+  for j in 1:(i - 1)
     push!(img0, F[j] * F[i] - U.qi[i] * F[i] * F[j])
   end
   push!(img0, F[i])
-  for j in i+1:rank(root_system(U))
+  for j in (i + 1):rank(root_system(U))
     push!(img0, F[j] * F[i] - U.qi[i] * F[i] * F[j])
   end
 
@@ -148,7 +148,7 @@ end
 ###############################################################################
 
 # Accepts as input the image of Chevalley generators and returns the image of
-# the PBW generators.
+# the PBW generators. Treated as QQ(q)-linear map.
 function _image(U::QuantumGroup, image::Vector{QuantumGroupElem})
   R = root_system(U)
   cvx = U.cvx
@@ -156,14 +156,14 @@ function _image(U::QuantumGroup, image::Vector{QuantumGroupElem})
 
   nsim = number_of_simple_roots(R)
   npos = number_of_positive_roots(R)
-  
+
   img = zeros(U.alg, ngens(U.alg))
   for i in 1:nsim
     img[U.cvx[i]] = add!(img[U.cvx[i]], image[i].elem)
   end
 
   # we construct the images of the PBW generators inductively by height
-  for m in (nsim+1):npos
+  for m in (nsim + 1):npos
     n = 0
     s = 0
     # find positive root with smaller height
