@@ -68,7 +68,7 @@ function adapted_string(d::LusztigDatum)
   wo = copy(d._w0)
   datum = copy(d.datum)
   for i in 1:length(s)
-    exchange!(weyl_group(d), d.w0[i], wn)
+    exchange_left!(weyl_group(d), wn,  d.w0[i])
     for mv in braid_moves(weyl_group(d), wn, wo)
       _move!(datum, mv)
     end

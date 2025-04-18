@@ -390,8 +390,10 @@ function _g_algebra_internal(sr::Singular.PolyRing, rel)
   D = Singular.zero_matrix(sr, n, n)
   for i in 1:n-1, j in i+1:n
     t = _unsafe_coerce(sr, rel[i,j], false)
-    AbstractAlgebra.leading_monomial(t) == gen(sr, i)*gen(sr, j) ||
-                              error("incorrect leading monomial in relations")
+    if AbstractAlgebra.leading_monomial(t) != gen(sr, i)*gen(sr, j)
+      println("$i, $j")
+      error("incorrect leading monomial in relations")
+    end
     C[i,j] = sr(AbstractAlgebra.leading_coefficient(t))
     D[i,j] = AbstractAlgebra.tail(t)
     srel[i,j] = t
