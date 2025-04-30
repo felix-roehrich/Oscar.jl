@@ -18,6 +18,15 @@ mutable struct QuantumGroupElem{T<:FieldElem,S} <: NCRingElem
   elem::PBWAlgElem{T,S}
 end
 
+struct QuantumGroupTensorProduct
+  U::Vector{QuantumGroup}
+end
+
+struct QuantumGroupTensorProductElem
+  parent::QuantumGroupTensorProduct
+  elem::Vector{QuantumGroupElem}
+end
+
 struct QuantumGroupHomomorphism
   img::Vector{QuantumGroupElem}
 end

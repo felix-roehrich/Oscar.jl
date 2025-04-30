@@ -143,6 +143,21 @@ end
 
 ###############################################################################
 #
+#   Comultiplication
+#
+###############################################################################
+
+function comultiplication(U::QuantumGroup, n::Int=2)
+  T = QuantumGroupTensorProduct([U for _ in 1:n])
+
+  img = Vector{QuantumGroupTensorProductElem}(undef, ngens(U))
+  for i in 1:rank(root_system(U))
+    img[U.cvx[i]] = QuantumGroupTensorProductElem(T, [gen(U, U.cvx[i])])
+  end
+end
+
+###############################################################################
+#
 #   Internals
 #
 ###############################################################################
