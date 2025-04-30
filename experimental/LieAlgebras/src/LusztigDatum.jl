@@ -40,6 +40,15 @@ function lusztig_datum(R::RootSystem, datum::Vector{Int}, w0::Vector{UInt8})
   return LusztigDatum(datum, copy(w0), R, w0)
 end
 
+function lusztig_datum(d::LusztigDatum, w0::Vector{<:Integer})
+  datum = copy(d.datum)
+  w = UInt8.(w0)
+  for mv in braid_moves(weyl_group(d), w, d._w0)
+    _move!(datum, mv)
+  end
+  return LusztigDatum(datum, copy(w), d.root_system, w)
+end
+
 function Base.show(io::IO, d::LusztigDatum)
   for mv in braid_moves(weyl_group(d), d.w0, d._w0)
     _move!(d.datum, mv)
@@ -68,7 +77,7 @@ function adapted_string(d::LusztigDatum)
   wo = copy(d._w0)
   datum = copy(d.datum)
   for i in 1:length(s)
-    exchange_left!(weyl_group(d), wn,  d.w0[i])
+    exchange_left!(weyl_group(d), wn, d.w0[i])
     for mv in braid_moves(weyl_group(d), wn, wo)
       _move!(datum, mv)
     end
