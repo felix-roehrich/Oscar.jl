@@ -112,7 +112,7 @@ function _state!(d::LusztigDatum, i::UInt8)
   end
 
   w0 = copy(d._w0)
-  exchange!(weyl_group(d), i, w0)
+  exchange_left!(weyl_group(d), w0, i)
   for mv in braid_moves(weyl_group(d), w0, d._w0)
     _move!(d.datum, mv)
   end
@@ -149,40 +149,40 @@ function _move!(d::Vector{Int}, mv::Tuple{Int,Int,Int})
       reverse!(d, n, n + 5)
     end
     m1 = min(d[n], d[n + 2])
-    m2 = min(d[n + 2], d[n + 5])
-    m3 = min(d[n] + d[n + 2], 2 * d[n + 2], d[n + 2] + d[n + 5], d[n] + d[n + 5])
+    m2 = min(d[n + 2], d[n + 4])
+    m3 = min(d[n] + d[n + 2], 2 * d[n + 2], d[n + 2] + d[n + 4], d[n] + d[n + 4])
     m4 = min(
       d[n] + d[n + 1] + 2 * d[n + 2] + d[n + 3],
       d[n] + d[n + 1] + 2 * m2 + d[n + 5],
-      m1 + d[n + 3] + 2 * d[n + 5] + d[n + 5],
+      m1 + d[n + 3] + 2 * d[n + 4] + d[n + 5],
     )
     m5 = min(
       2 * d[n] + 2 * d[n + 1] + 3 * d[n + 2] + d[n + 3],
       2 * d[n] + 2 * d[n + 1] + 3 * m2 + d[n + 5],
-      2 * m1 + 2 * d[n + 3] + 3 * d[n + 5] + d[n + 5],
-      d[n] + d[n + 1] + d[n + 3] + 2 * d[n + 5] + d[n + 5] + m3,
+      2 * m1 + 2 * d[n + 3] + 3 * d[n + 4] + d[n + 5],
+      d[n] + d[n + 1] + d[n + 3] + 2 * d[n + 4] + d[n + 5] + m3,
     )
     m6 = min(
       3 * d[n] + 2 * d[n + 1] + 3 * d[n + 2] + d[n + 3],
       3 * d[n] + 2 * d[n + 1] + 3 * m2 + d[n + 5],
-      3 * m1 + 2 * d[n + 3] + 3 * d[n + 5] + d[n + 5],
-      2 * d[n] + d[n + 1] + d[n + 3] + 2 * d[n + 5] + d[n + 5] + m3,
+      3 * m1 + 2 * d[n + 3] + 3 * d[n + 4] + d[n + 5],
+      2 * d[n] + d[n + 1] + d[n + 3] + 2 * d[n + 4] + d[n + 5] + m3,
     )
     m7 = min(
       2 * d[n] + 2 * d[n + 1] + 3 * d[n + 2] + d[n + 3] +
       min(
         d[n] + d[n + 1] + 3 * d[n + 2] + d[n + 3],
         d[n] + d[n + 1] + 3 * m2 + d[n + 5],
-        m3 + d[n + 3] + 2 * d[n + 5] + d[n + 5],
+        m3 + d[n + 3] + 2 * d[n + 4] + d[n + 5],
       ),
-      2 * d[n + 5] + 3 * min(d[n] + d[n + 1] + 2 * m2, m1 + d[n + 3] + 2 * d[n + 5]),
+      2 * d[n + 5] + 3 * min(d[n] + d[n + 1] + 2 * m2, m1 + d[n + 3] + 2 * d[n + 4]),
     )
 
     d[n], d[n + 1], d[n + 2], d[n + 3], d[n + 4], d[n + 5] = d[n + 1] + 3 * d[n + 2] +
                                                              2 * d[n + 3] + 3 * d[n + 4] +
                                                              d[n + 5] - m6,
     m6 - m5, 3 * m5 - m6 - m7, m7 - m4 - m5, 3 * m4 - m7,
-    d[n + 5] + d[n + 1] + 2 * d[n + 2] + d[n + 3] + d[n + 4] - m4
+    d[n] + d[n + 1] + 2 * d[n + 2] + d[n + 3] + d[n + 4] - m4
 
     if dir == -1
       reverse!(d, n, n + 5)
