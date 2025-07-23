@@ -25,6 +25,7 @@ import ..Oscar:
   divexact,
   divexact!,
   divexact_right,
+  dot,
   elem_type,
   exponent_vector,
   expressify,
