@@ -14,8 +14,14 @@ function image!(
   t2 = zero(hom.codomain)
   cf = zero(coefficient_ring(parent(x)))
 
+  if hom.anti
+    iter = ngens(hom.domain):-1:1
+  else
+    iter = 1:ngens(hom.domain)
+  end
+
   for i in 1:length(x)
-    for j in 1:ngens(hom.domain)
+    for j in iter
       for _ in 1:exponent(x, i, j)
         t2 = mul!(t2, t1, hom.img[j])
         t1 = swap!(t1, t2)

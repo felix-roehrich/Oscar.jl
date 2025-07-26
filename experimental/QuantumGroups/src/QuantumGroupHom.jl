@@ -108,7 +108,7 @@ function _bar_automorphism(A::PBWAlgebra{QuantumFieldElem}, R::RootSystem, cvx::
     img[cvx[m]] = mul!(img[cvx[m]], c)
   end
 
-  return PBWAlgebraHom(A, A, _BarAutomorphism(), img)
+  return PBWAlgebraHom(A, A, false, _BarAutomorphism(), img)
 end
 
 function braid_automorphism(U::QuantumGroup, i::Int)

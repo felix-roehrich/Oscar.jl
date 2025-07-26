@@ -65,8 +65,24 @@ struct PBWAlgebraHom{T,S,H<:Map} <:
        Map{PBWAlgebra{T},PBWAlgebra{S},Hecke.HeckeMap,PBWAlgebraHom{T,S,H}}
   domain::PBWAlgebra{T}
   codomain::PBWAlgebra{S}
+
+  anti::Bool
   field_automorphism::H
   img::Vector{PBWAlgebraElem{T}}
+end
+
+struct PBWAlgebraIdeal{T} <: Ideal{T}
+  gens::Vector{PBWAlgebraElem{T}}
+  gb::Vector{PBWAlgebraElem{T}}
+end
+
+struct PBWAlgebraModule{T} <: AbstractAlgebra.Module{T}
+  I::PBWAlgebraIdeal{T}
+end
+
+struct PBWAlgebraModuleElem{T} <: AbstractAlgebra.ModuleElem{T}
+  parent::PBWAlgebraModule{T}
+  elem::PBWAlgebraElem{T}
 end
 
 struct QuantumField <: Field
