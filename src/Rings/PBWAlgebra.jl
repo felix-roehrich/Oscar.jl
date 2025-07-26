@@ -126,10 +126,6 @@ function AbstractAlgebra.trailing_coefficient(a::PBWAlgElem{T}) where T
   return coefficient_ring(a)(AbstractAlgebra.trailing_coefficient(a.sdata))::T
 end
 
-function Singular.trailing_exponent_vector(a::PBWAlgElem)
-  return Singular.trailing_exponent_vector(a.sdata)
-end
-
 function constant_coefficient(a::PBWAlgElem{T}) where T
   return coefficient_ring(a)(constant_coefficient(a.sdata))::T
 end

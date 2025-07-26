@@ -156,6 +156,81 @@ function comultiplication(U::QuantumGroup, n::Int=2)
   end
 end
 
+function _dot_antihomomorphism(U::QuantumGroup)
+  img = zeros(U.alg, ngens(U.alg)) # img = Vector{QuantumGroupElem}(undef, ngens(U))
+  R = root_system(U)
+
+  ns = number_of_simple_roots(R)
+  np = number_of_positive_roots(R)
+
+  for i in 1:ns
+    img[U.cvx[i]] =
+      U.qi[i]^-1 * gen(U.alg, 2 * i + np) * gen(U.alg, U.cvx[i] + 2 * rank(R) + np)
+  end
+
+  cvx = U.cvx
+  # we construct the images of the PBW generators inductively by height
+  for m in (ns + 1):np
+    n = 0
+    s = 0
+    # find positive root with smaller height
+    for i in 1:ns
+      n = Int(weyl_group(R).refl[i, m])
+      if n < m
+        s = i
+        break
+      end
+    end
+
+    pow = Int(height(positive_root(R, m)) - height(positive_root(R, n)))
+    if cvx[s] < cvx[n]
+      rel = gen(U.alg, cvx[n]) * gen(U.alg, cvx[s])^pow
+      img[cvx[m]] = img[cvx[s]]^pow * img[cvx[n]]
+    else
+      rel = gen(U.alg, cvx[s])^pow * gen(U.alg, cvx[n])
+      img[cvx[m]] = img[cvx[n]] * img[cvx[s]]^pow
+    end
+
+    b = one(U.alg)
+    coeff = zero(coefficient_ring(U))
+    for term in terms(rel)
+      exp = leading_exponent_vector(term)
+      if exp[cvx[m]] != 0
+        coeff = inv!(coeff, leading_coefficient(term))
+        continue
+      end
+
+      for n in length(exp):-1:1
+        for _ in 1:exp[n]
+          b = mul!(b, img[n])
+        end
+      end
+
+      img[cvx[m]] = submul!(img[cvx[m]], b, leading_coefficient(term))
+      b = one!(b)
+    end
+    img[cvx[m]] = mul!(img[cvx[m]], coeff)
+  end
+
+  return function (x::QuantumGroupElem)
+    z = zero(U.alg)
+    t = one(U.alg)
+    for term in terms(x.elem)
+      exp = leading_exponent_vector(term)
+      for i in length(exp):-1:1
+        for _ in 1:exp[i]
+          t = mul!(t, img[i])
+        end
+      end
+
+      z = addmul!(z, t, leading_coefficient(term))
+      t = one!(t)
+    end
+
+    return QuantumGroupElem(U, z)
+  end
+end
+
 ###############################################################################
 #
 #   Internals
