@@ -125,3 +125,8 @@ struct QuantumGroupHom <: Map{QuantumGroup,QuantumGroup,Hecke.HeckeMap,QuantumGr
   codomain::QuantumGroup
   hom::PBWAlgebraHom{QuantumFieldElem,QuantumFieldElem}
 end
+
+struct QuantumGroupModule <: ModuleFP{QuantumFieldElem}
+  quantum_group::QuantumGroup
+  I::PBWAlgebraIdeal{QuantumFieldElem}
+end

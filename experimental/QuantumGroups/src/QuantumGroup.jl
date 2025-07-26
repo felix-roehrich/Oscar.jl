@@ -33,7 +33,6 @@ function _quantum_group(
   for i in 1:length(w0)
     push!(vars, Symbol("F$i"))
   end
-  #=
   for i in 1:rank(R)
     push!(vars, Symbol("[K$i; 1]"))
     push!(vars, Symbol("K$i"))
@@ -41,7 +40,6 @@ function _quantum_group(
   for i in 1:length(w0)
     push!(vars, Symbol("E$i"))
   end
-  =#
 
   P, theta = polynomial_ring(QF, vars)
 

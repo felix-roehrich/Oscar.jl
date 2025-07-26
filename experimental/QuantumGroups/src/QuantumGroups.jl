@@ -75,6 +75,7 @@ include("QBosonAlgebra.jl")
 include("QuantumField.jl")
 include("QuantumGroup.jl")
 include("QuantumGroupHom.jl")
+include("QuantumGroupModule.jl")
 
 end
 
