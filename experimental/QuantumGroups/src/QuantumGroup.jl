@@ -316,13 +316,13 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
   for i in 1:length(w0)
     push!(vars, Symbol("F$i"))
   end
-  #for i in 1:rank(R)
-  #  push!(vars, Symbol("[K$i; 1]"))
-  #  push!(vars, Symbol("K$i"))
-  #end
-  #for i in length(w0):-1:1
-  #  push!(vars, Symbol("E$i"))
-  #end
+  for i in 1:rank(R)
+    push!(vars, Symbol("[K$i; 1]"))
+    push!(vars, Symbol("K$i"))
+  end
+  for i in 1:length(w0)
+    push!(vars, Symbol("E$i"))
+  end
 
   P, theta = polynomial_ring(QA, vars)
 
@@ -354,36 +354,15 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
   GAP.Globals.SetLongestWeylWord(gapR, GAP.GapObj(GAP.GapObj.(w0)))
 
   gapU = GAP.Globals.QuantizedUEA(gapR)
-  gapFamily = GAP.Globals.ElementsFamily(GAP.Globals.FamilyObj(gapU))
-
-  npos = number_of_positive_roots(R)
-  gapGens = GAP.GapObj[]
-  for i in 1:npos
-    gapGens = push!(
-      gapGens, Oscar.GAPWrap.ObjByExtRep(gapFamily, GAP.GapObj([[i, 1], 1]; recursive=true))
-    )
-  end
-  #for i in (npos + 1):(npos + rank(R))
-  #  gapGens = push!(
-  #    gapGens,
-  #    Oscar.GAPWrap.ObjByExtRep(gapFamily, GAP.GapObj([[[i, 0], 1], 1]; recursive=true)),
-  #  )
-  #  gapGens = push!(
-  #    gapGens,
-  #    Oscar.GAPWrap.ObjByExtRep(gapFamily, GAP.GapObj([[[i, 1], 0], 1]; recursive=true)),
-  #  )
-  #end
-  #for i in (2 * npos + rank(R)):-1:(npos + rank(R) + 1)
-  #  gapGens = push!(
-  #    gapGens, Oscar.GAPWrap.ObjByExtRep(gapFamily, GAP.GapObj([[i, 1], 1]; recursive=true))
-  #  )
-  #end
+  gapF = GAP.Globals.GeneratorsOfAlgebra(gapU)
 
   # set rels
+  npos = number_of_positive_roots(R)
   rels = zero_matrix(P, length(vars), length(vars))
+
   term = one(P)
   for i in 1:length(vars), j in (i + 1):length(vars)
-    rep = Oscar.GAPWrap.ExtRepOfObj(gapGens[j] * gapGens[i])
+    rep = Oscar.GAPWrap.ExtRepOfObj(gapF[j] * gapF[i])
     for n in 1:2:length(rep)
       for m in 1:2:length(rep[n])
         if !GAP.Globals.IsList(rep[n][m])
@@ -393,7 +372,7 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
             end
           else
             for _ in 1:rep[n][m + 1]
-              term = mul!(term, theta[end + 1 - rep[n][m] + npos + rank(R)])
+              term = mul!(term, theta[rank(R) + rep[n][m]])
             end
           end
         else
@@ -416,17 +395,6 @@ function quantum_group(R::RootSystem, w0=word(longest_element(weyl_group(R))))
       term = one!(term)
     end
   end
-
-  #=
-  for i in 1:npos, j in (i + 1):npos
-    rel = deepcopy(rels[i, j])
-    for k in 1:length(rel)
-      bar!(coeff(rel, k))
-      set_exponent_vector!(rel, k, reverse!(exponent_vector(rel, k)))
-    end
-    rels[end + 1 - j, end + 1 - i] = rel
-  end
-  =#
 
   cvx = zeros(Int, npos)
   for i in 1:npos
